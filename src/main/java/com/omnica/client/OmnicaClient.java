@@ -8,7 +8,7 @@ import com.omnica.common.packet.NodeSyncPayload;
 import com.omnica.common.packet.TetherTransferPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererFactories;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.util.math.BlockPos;
 

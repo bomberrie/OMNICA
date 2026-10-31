@@ -17,6 +17,7 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.ItemActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -100,10 +101,10 @@ public class NexusNodeBlock extends BlockWithEntity {
     }
 
     @Override
-    protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
+    protected ItemActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (stack.isOf(Omnica.NETWORK_LINKER)) {
             // Let the linker item handle node connections
-            return ActionResult.PASS;
+            return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
         if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
@@ -116,28 +117,34 @@ public class NexusNodeBlock extends BlockWithEntity {
                         case INSERTER -> NexusNodeBlockEntity.NodeMode.BALANCED;
                     };
                     nodeEntity.setMode(nextMode);
-                    player.sendMessage(Text.translatable("Mode set to: " + nextMode.name()), true);
+                    player.sendMessage(Text.literal("Mode set to: " + nextMode.name()), true);
                     world.playSound(null, pos, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 1.0f, 1.4f);
                 }
-                return ActionResult.SUCCESS;
+                return ItemActionResult.SUCCESS;
             } else if (!stack.isEmpty()) {
                 if (!world.isClient()) {
                     nodeEntity.setFilterStack(stack.copyWithCount(1));
-                    player.sendMessage(Text.translatable("Filter set to: " + stack.getName().getString()), true);
+                    player.sendMessage(Text.literal("Filter set to: " + stack.getName().getString()), true);
                     world.playSound(null, pos, SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.BLOCKS, 1.0f, 1.2f);
                 }
-                return ActionResult.SUCCESS;
-            } else {
-                if (!world.isClient()) {
-                    ItemStack currentFilter = nodeEntity.getFilterStack();
-                    String filterName = currentFilter.isEmpty() ? "None" : currentFilter.getName().getString();
-                    player.sendMessage(Text.literal(String.format("Node [%s] | Connections: %d | Filter: %s",
-                            nodeEntity.getMode().name(),
-                            nodeEntity.getConnections().size(),
-                            filterName)), false);
-                }
-                return ActionResult.SUCCESS;
+                return ItemActionResult.SUCCESS;
             }
+        }
+        return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    @Override
+    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+        if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+            if (!world.isClient()) {
+                ItemStack currentFilter = nodeEntity.getFilterStack();
+                String filterName = currentFilter.isEmpty() ? "None" : currentFilter.getName().getString();
+                player.sendMessage(Text.literal(String.format("Node [%s] | Connections: %d | Filter: %s",
+                        nodeEntity.getMode().name(),
+                        nodeEntity.getConnections().size(),
+                        filterName)), false);
+            }
+            return ActionResult.SUCCESS;
         }
         return ActionResult.PASS;
     }

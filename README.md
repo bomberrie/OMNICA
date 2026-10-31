@@ -19,9 +19,9 @@ OMNICA replaces legacy pipe-and-hopper automation with a unified, visually stunn
 ## Building and Running
 
 ### Prerequisites
-- JDK 21+
-- Fabric Loader >= 0.16.x
-- Minecraft 1.21.1 / 26.x
+- JDK 25+
+- Fabric Loader >= 0.20.x
+- Minecraft 26.3 ("Wilderness Bound")
 
 ### Build
 ```bash
