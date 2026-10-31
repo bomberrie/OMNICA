@@ -1,6 +1,8 @@
 package com.omnica.common.item;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
+import com.omnica.common.blockentity.RequestTerminalBlockEntity;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.component.type.NbtComponent;
@@ -28,14 +30,33 @@ public class NetworkLinkerItem extends Item {
         super(settings);
     }
 
+    private boolean isLinkable(BlockEntity be) {
+        return be instanceof NexusNodeBlockEntity || be instanceof RequestTerminalBlockEntity;
+    }
+
+    private void linkNodes(BlockEntity source, BlockEntity target, BlockPos sourcePos, BlockPos targetPos) {
+        if (source instanceof NexusNodeBlockEntity sNode) {
+            sNode.addConnection(targetPos);
+        } else if (source instanceof RequestTerminalBlockEntity sTerm) {
+            sTerm.addConnection(targetPos);
+        }
+
+        if (target instanceof NexusNodeBlockEntity tNode) {
+            tNode.addConnection(sourcePos);
+        } else if (target instanceof RequestTerminalBlockEntity tTerm) {
+            tTerm.addConnection(sourcePos);
+        }
+    }
+
     @Override
     public ActionResult useOnBlock(ItemUsageContext context) {
         World world = context.getWorld();
         BlockPos clickedPos = context.getBlockPos();
         PlayerEntity player = context.getPlayer();
         ItemStack stack = context.getStack();
+        BlockEntity clickedBe = world.getBlockEntity(clickedPos);
 
-        if (world.getBlockEntity(clickedPos) instanceof NexusNodeBlockEntity targetNode) {
+        if (isLinkable(clickedBe)) {
             if (world.isClient()) {
                 return ActionResult.SUCCESS;
             }
@@ -65,9 +86,9 @@ public class NetworkLinkerItem extends Item {
                         return ActionResult.FAIL;
                     }
 
-                    if (world.getBlockEntity(selectedPos) instanceof NexusNodeBlockEntity sourceNode) {
-                        boolean linked = sourceNode.addConnection(clickedPos);
-                        targetNode.addConnection(selectedPos);
+                    BlockEntity selectedBe = world.getBlockEntity(selectedPos);
+                    if (isLinkable(selectedBe)) {
+                        linkNodes(selectedBe, clickedBe, selectedPos, clickedPos);
 
                         if (player != null) {
                             player.sendMessage(Text.translatable("message.omnica.node_linked",
@@ -83,12 +104,12 @@ public class NetworkLinkerItem extends Item {
                 }
             }
 
-            // Save the first selected node
+            // Save first selected node
             nbt.put("SelectedPos", NbtHelper.fromBlockPos(clickedPos));
             stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
 
             if (player != null) {
-                player.sendMessage(Text.literal(String.format("Selected Nexus Node at [%d, %d, %d]. Right-click target node to link.",
+                player.sendMessage(Text.literal(String.format("Selected Node at [%d, %d, %d]. Right-click target node to link.",
                         clickedPos.getX(), clickedPos.getY(), clickedPos.getZ())).formatted(Formatting.AQUA), true);
                 world.playSound(null, clickedPos, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 1.2f);
             }

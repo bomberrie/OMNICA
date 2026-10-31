@@ -1,16 +1,23 @@
 package com.omnica;
 
 import com.omnica.common.block.NexusNodeBlock;
+import com.omnica.common.block.RequestTerminalBlock;
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
+import com.omnica.common.blockentity.RequestTerminalBlockEntity;
 import com.omnica.common.item.NetworkLinkerItem;
 import com.omnica.common.network.OmnicaNetworkManager;
 import com.omnica.common.packet.NodeSyncPayload;
 import com.omnica.common.packet.TetherTransferPayload;
+import com.omnica.common.packet.TerminalRequestPayload;
+import com.omnica.common.packet.TerminalSyncPayload;
+import com.omnica.common.screen.RequestTerminalScreenHandler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
@@ -18,10 +25,16 @@ import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.screen.ScreenHandlerType;
 import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,11 +56,25 @@ public class Omnica implements ModInitializer {
                     .nonOpaque())
     );
 
+    public static final Block REQUEST_TERMINAL = Registry.register(
+            Registries.BLOCK,
+            id("request_terminal"),
+            new RequestTerminalBlock(AbstractBlock.Settings.copy(Blocks.COPPER_BLOCK)
+                    .strength(2.5f, 6.0f)
+                    .sounds(BlockSoundGroup.COPPER))
+    );
+
     // Items
     public static final Item NEXUS_NODE_ITEM = Registry.register(
             Registries.ITEM,
             id("nexus_node"),
             new BlockItem(NEXUS_NODE, new Item.Settings())
+    );
+
+    public static final Item REQUEST_TERMINAL_ITEM = Registry.register(
+            Registries.ITEM,
+            id("request_terminal"),
+            new BlockItem(REQUEST_TERMINAL, new Item.Settings())
     );
 
     public static final Item NETWORK_LINKER = Registry.register(
@@ -63,6 +90,19 @@ public class Omnica implements ModInitializer {
             FabricBlockEntityTypeBuilder.create(NexusNodeBlockEntity::new, NEXUS_NODE).build()
     );
 
+    public static final BlockEntityType<RequestTerminalBlockEntity> REQUEST_TERMINAL_BLOCK_ENTITY = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE,
+            id("request_terminal"),
+            FabricBlockEntityTypeBuilder.create(RequestTerminalBlockEntity::new, REQUEST_TERMINAL).build()
+    );
+
+    // Screen Handlers
+    public static final ScreenHandlerType<RequestTerminalScreenHandler> REQUEST_TERMINAL_SCREEN_HANDLER = Registry.register(
+            Registries.SCREEN_HANDLER,
+            id("request_terminal"),
+            new ExtendedScreenHandlerType<>(RequestTerminalScreenHandler::new, BlockPos.PACKET_CODEC)
+    );
+
     @Override
     public void onInitialize() {
         LOGGER.info("[OMNICA] Initializing Vanilla-First Logistics Network...");
@@ -70,12 +110,32 @@ public class Omnica implements ModInitializer {
         // Register Creative Tab Entries
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.REDSTONE).register(entries -> {
             entries.add(NEXUS_NODE_ITEM);
+            entries.add(REQUEST_TERMINAL_ITEM);
             entries.add(NETWORK_LINKER);
         });
 
         // Register Networking Payloads
         PayloadTypeRegistry.playS2C().register(TetherTransferPayload.ID, TetherTransferPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(NodeSyncPayload.ID, NodeSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(TerminalSyncPayload.ID, TerminalSyncPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(TerminalRequestPayload.ID, TerminalRequestPayload.CODEC);
+
+        // Handle Terminal Requests from Clients
+        ServerPlayNetworking.registerGlobalReceiver(TerminalRequestPayload.ID, (payload, context) -> {
+            context.server().execute(() -> {
+                if (context.player().getServerWorld().getBlockEntity(payload.terminalPos()) instanceof RequestTerminalBlockEntity terminal) {
+                    int fulfilled = terminal.fulfillRequest(payload.item(), payload.count());
+                    if (fulfilled > 0) {
+                        ItemStack delivered = payload.item().copyWithCount(fulfilled);
+                        context.player().giveItemStack(delivered);
+                        context.player().getServerWorld().playSound(null, payload.terminalPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.8f, 1.4f);
+                    }
+                    // Sync refreshed network stock back to player
+                    List<ItemStack> updatedStock = terminal.getAggregatedNetworkItems();
+                    ServerPlayNetworking.send(context.player(), new TerminalSyncPayload(updatedStock));
+                }
+            });
+        });
 
         // Register Server Tick Event for Zero-Lag Centralized Transfers
         ServerTickEvents.END_WORLD_TICK.register(world -> {

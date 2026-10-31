@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": [
+    " C ",
+    "RCR",
+    "CCC"
+  ],
+  "key": {
+    "C": {
+      "item": "minecraft:crafter"
+    },
+    "R": {
+      "item": "minecraft:amethyst_shard"
+    },
+    "C": {
+      "item": "minecraft:copper_block"
+    }
+  },
+  "result": {
+    "id": "omnica:request_terminal",
+    "count": 1
+  }
+}
