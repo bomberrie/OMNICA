@@ -1,0 +1,30 @@
+{
+  "variants": {
+    "facing=down": {
+      "model": "omnica:block/nexus_node",
+      "x": 180
+    },
+    "facing=up": {
+      "model": "omnica:block/nexus_node"
+    },
+    "facing=north": {
+      "model": "omnica:block/nexus_node",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "omnica:block/nexus_node",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west": {
+      "model": "omnica:block/nexus_node",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east": {
+      "model": "omnica:block/nexus_node",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

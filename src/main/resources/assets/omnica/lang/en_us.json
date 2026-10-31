@@ -1,0 +1,9 @@
+{
+  "itemGroup.omnica.omnica_group": "OMNICA Logistics",
+  "block.omnica.nexus_node": "Nexus Node",
+  "item.omnica.nexus_node": "Nexus Node",
+  "item.omnica.network_linker": "Nexus Linker",
+  "message.omnica.node_linked": "Linked Nexus Node at [%s, %s, %s] to [%s, %s, %s]",
+  "message.omnica.link_cleared": "Nexus Linker reset.",
+  "message.omnica.out_of_range": "Target Nexus Node is out of 32-block range!"
+}

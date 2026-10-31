@@ -1,0 +1,49 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "minecraft:block/copper_block",
+    "base": "minecraft:block/copper_block",
+    "core": "minecraft:block/amethyst_block",
+    "ring": "minecraft:block/redstone_block"
+  },
+  "elements": [
+    {
+      "name": "base_plate",
+      "from": [2, 0, 2],
+      "to": [14, 2, 14],
+      "faces": {
+        "down":  { "texture": "#base", "cullface": "down" },
+        "up":    { "texture": "#base" },
+        "north": { "texture": "#base" },
+        "south": { "texture": "#base" },
+        "west":  { "texture": "#base" },
+        "east":  { "texture": "#base" }
+      }
+    },
+    {
+      "name": "amethyst_core",
+      "from": [5, 2, 5],
+      "to": [11, 8, 11],
+      "faces": {
+        "up":    { "texture": "#core" },
+        "north": { "texture": "#core" },
+        "south": { "texture": "#core" },
+        "west":  { "texture": "#core" },
+        "east":  { "texture": "#core" }
+      }
+    },
+    {
+      "name": "focus_ring",
+      "from": [4, 4, 4],
+      "to": [12, 6, 12],
+      "faces": {
+        "up":    { "texture": "#ring" },
+        "down":  { "texture": "#ring" },
+        "north": { "texture": "#ring" },
+        "south": { "texture": "#ring" },
+        "west":  { "texture": "#ring" },
+        "east":  { "texture": "#ring" }
+      }
+    }
+  ]
+}
