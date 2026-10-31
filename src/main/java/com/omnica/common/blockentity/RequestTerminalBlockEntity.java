@@ -51,6 +51,36 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
         return removed;
     }
 
+    private List<NexusNodeBlockEntity> collectReachableNodes(ServerLevel serverLevel) {
+        Set<BlockPos> visited = new HashSet<>();
+        Queue<BlockPos> queue = new ArrayDeque<>(connectedNodes);
+        visited.addAll(connectedNodes);
+        List<NexusNodeBlockEntity> result = new ArrayList<>();
+
+        while (!queue.isEmpty()) {
+            BlockPos currentPos = queue.poll();
+            if (!serverLevel.isLoaded(currentPos)) continue;
+
+            BlockEntity be = serverLevel.getBlockEntity(currentPos);
+            if (be instanceof NexusNodeBlockEntity nodeEntity) {
+                result.add(nodeEntity);
+                for (BlockPos neighbor : nodeEntity.getConnections()) {
+                    if (visited.add(neighbor)) {
+                        queue.add(neighbor);
+                    }
+                }
+            } else if (be instanceof RequestTerminalBlockEntity terminalEntity) {
+                for (BlockPos neighbor : terminalEntity.getConnectedNodes()) {
+                    if (visited.add(neighbor)) {
+                        queue.add(neighbor);
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
     /**
      * Aggregates total stock available across all reachable nodes in the network.
      */
@@ -60,19 +90,14 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
         }
 
         Map<ItemVariant, Long> stockMap = new HashMap<>();
-        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverLevel);
+        List<NexusNodeBlockEntity> reachable = collectReachableNodes(serverLevel);
 
-        for (BlockPos nodePos : connectedNodes) {
-            for (BlockPos reachablePos : manager.getGraph().getNeighbors(nodePos)) {
-                if (!serverLevel.isLoaded(reachablePos)) continue;
-                if (serverLevel.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
-                    Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
-                    if (storage != null && storage.supportsExtraction()) {
-                        for (StorageView<ItemVariant> view : storage) {
-                            if (!view.isResourceBlank() && view.getAmount() > 0) {
-                                stockMap.merge(view.getResource(), view.getAmount(), Long::sum);
-                            }
-                        }
+        for (NexusNodeBlockEntity nodeEntity : reachable) {
+            Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
+            if (storage != null && storage.supportsExtraction()) {
+                for (StorageView<ItemVariant> view : storage) {
+                    if (!view.isResourceBlank() && view.getAmount() > 0) {
+                        stockMap.merge(view.getResource(), view.getAmount(), Long::sum);
                     }
                 }
             }
@@ -96,24 +121,18 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
 
         ItemVariant targetVariant = ItemVariant.of(requested);
         int remaining = desiredAmount;
-        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverLevel);
+        List<NexusNodeBlockEntity> reachable = collectReachableNodes(serverLevel);
 
         // 1. Direct extraction from storage chests
-        for (BlockPos nodePos : connectedNodes) {
-            for (BlockPos reachablePos : manager.getGraph().getNeighbors(nodePos)) {
-                if (remaining <= 0) break;
-                if (!serverLevel.isLoaded(reachablePos)) continue;
-
-                if (serverLevel.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
-                    Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
-                    if (storage != null && storage.supportsExtraction()) {
-                        try (Transaction tx = Transaction.openOuter()) {
-                            long extracted = storage.extract(targetVariant, remaining, tx);
-                            if (extracted > 0) {
-                                tx.commit();
-                                remaining -= (int) extracted;
-                            }
-                        }
+        for (NexusNodeBlockEntity nodeEntity : reachable) {
+            if (remaining <= 0) break;
+            Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
+            if (storage != null && storage.supportsExtraction()) {
+                try (Transaction tx = Transaction.openOuter()) {
+                    long extracted = storage.extract(targetVariant, remaining, tx);
+                    if (extracted > 0) {
+                        tx.commit();
+                        remaining -= (int) extracted;
                     }
                 }
             }
@@ -121,14 +140,12 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
 
         // 2. Automated Crafter fulfillment if still needed
         if (remaining > 0) {
-            for (BlockPos nodePos : connectedNodes) {
+            for (NexusNodeBlockEntity nodeEntity : reachable) {
                 if (remaining <= 0) break;
-                if (serverLevel.getBlockEntity(nodePos) instanceof NexusNodeBlockEntity nodeEntity) {
-                    if (CrafterCoupler.isAttachedToCrafter(serverLevel, nodeEntity)) {
-                        Optional<ItemStack> crafted = CrafterCoupler.tryCraft(serverLevel, nodeEntity);
-                        if (crafted.isPresent() && ItemStack.isSameItem(crafted.get(), requested)) {
-                            remaining -= Math.min(remaining, crafted.get().getCount());
-                        }
+                if (CrafterCoupler.isAttachedToCrafter(serverLevel, nodeEntity)) {
+                    Optional<ItemStack> crafted = CrafterCoupler.tryCraft(serverLevel, nodeEntity);
+                    if (crafted.isPresent() && ItemStack.isSameItem(crafted.get(), requested)) {
+                        remaining -= Math.min(remaining, crafted.get().getCount());
                     }
                 }
             }

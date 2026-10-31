@@ -144,11 +144,13 @@ public class Omnica implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(TerminalRequestPayload.TYPE, (payload, context) -> {
             context.server().execute(() -> {
                 if (context.player().level().getBlockEntity(payload.terminalPos()) instanceof RequestTerminalBlockEntity terminal) {
-                    int fulfilled = terminal.fulfillRequest(payload.item(), payload.count());
-                    if (fulfilled > 0) {
-                        ItemStack delivered = payload.item().copyWithCount(fulfilled);
-                        context.player().addItem(delivered);
-                        context.player().level().playSound(null, payload.terminalPos(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.8f, 1.4f);
+                    if (payload.count() > 0 && !payload.item().isEmpty()) {
+                        int fulfilled = terminal.fulfillRequest(payload.item(), payload.count());
+                        if (fulfilled > 0) {
+                            ItemStack delivered = payload.item().copyWithCount(fulfilled);
+                            context.player().addItem(delivered);
+                            context.player().level().playSound(null, payload.terminalPos(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.8f, 1.4f);
+                        }
                     }
                     // Sync refreshed network stock back to player
                     List<ItemStack> updatedStock = terminal.getAggregatedNetworkItems();

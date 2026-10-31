@@ -68,6 +68,16 @@ public class RequestTerminalScreenHandler extends AbstractContainerMenu {
     }
 
     @Override
+    public void broadcastChanges() {
+        super.broadcastChanges();
+        if (playerInventory.player instanceof ServerPlayer serverPlayer) {
+            if (serverPlayer.tickCount % 5 == 0) {
+                syncNetworkStock(serverPlayer);
+            }
+        }
+    }
+
+    @Override
     public ItemStack quickMoveStack(Player player, int slotIndex) {
         ItemStack itemStack = ItemStack.EMPTY;
         Slot slot = this.slots.get(slotIndex);

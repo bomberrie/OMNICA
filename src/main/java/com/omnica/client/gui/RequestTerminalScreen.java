@@ -28,6 +28,9 @@ public class RequestTerminalScreen extends AbstractContainerScreen<RequestTermin
         this.searchField = new EditBox(this.font, this.leftPos + 80, this.topPos + 6, 88, 12, Component.literal("Search..."));
         this.searchField.setResponder(text -> this.filterText = text.toLowerCase());
         this.addRenderableWidget(this.searchField);
+
+        // Request initial network inventory from server
+        ClientPlayNetworking.send(new TerminalRequestPayload(menu.getTerminalPos(), ItemStack.EMPTY, 0));
     }
 
     @Override
