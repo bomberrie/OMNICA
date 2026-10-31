@@ -2,11 +2,13 @@ package com.omnica.common.item;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
 import com.omnica.common.blockentity.RequestTerminalBlockEntity;
+import com.omnica.common.network.OmnicaNetworkManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -86,6 +88,13 @@ public class NetworkLinkerItem extends Item {
                 BlockEntity selectedBe = level.getBlockEntity(selectedPos);
                 if (isLinkable(selectedBe)) {
                     linkNodes(selectedBe, clickedBe, selectedPos, clickedPos);
+
+                    if (level instanceof ServerLevel serverLevel) {
+                        OmnicaNetworkManager net = OmnicaNetworkManager.get(serverLevel);
+                        net.getGraph().link(selectedPos, clickedPos);
+                        net.syncNodeToClients(selectedPos);
+                        net.syncNodeToClients(clickedPos);
+                    }
 
                     if (player != null) {
                         player.sendOverlayMessage(Component.translatable("message.omnica.node_linked",
