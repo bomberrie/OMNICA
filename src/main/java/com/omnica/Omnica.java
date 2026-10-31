@@ -48,11 +48,21 @@ public class Omnica implements ModInitializer {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
+    // Resource Keys
+    public static final ResourceKey<Block> NEXUS_NODE_BLOCK_KEY = ResourceKey.create(Registries.BLOCK, id("nexus_node"));
+    public static final ResourceKey<Item> NEXUS_NODE_ITEM_KEY = ResourceKey.create(Registries.ITEM, id("nexus_node"));
+
+    public static final ResourceKey<Block> REQUEST_TERMINAL_BLOCK_KEY = ResourceKey.create(Registries.BLOCK, id("request_terminal"));
+    public static final ResourceKey<Item> REQUEST_TERMINAL_ITEM_KEY = ResourceKey.create(Registries.ITEM, id("request_terminal"));
+
+    public static final ResourceKey<Item> NETWORK_LINKER_ITEM_KEY = ResourceKey.create(Registries.ITEM, id("network_linker"));
+
     // Blocks
     public static final Block NEXUS_NODE = Registry.register(
             BuiltInRegistries.BLOCK,
-            id("nexus_node"),
+            NEXUS_NODE_BLOCK_KEY,
             new NexusNodeBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .setId(NEXUS_NODE_BLOCK_KEY)
                     .strength(2.0f, 6.0f)
                     .sound(SoundType.COPPER)
                     .noOcclusion())
@@ -60,8 +70,9 @@ public class Omnica implements ModInitializer {
 
     public static final Block REQUEST_TERMINAL = Registry.register(
             BuiltInRegistries.BLOCK,
-            id("request_terminal"),
+            REQUEST_TERMINAL_BLOCK_KEY,
             new RequestTerminalBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .setId(REQUEST_TERMINAL_BLOCK_KEY)
                     .strength(2.5f, 6.0f)
                     .sound(SoundType.COPPER))
     );
@@ -69,20 +80,26 @@ public class Omnica implements ModInitializer {
     // Items
     public static final Item NEXUS_NODE_ITEM = Registry.register(
             BuiltInRegistries.ITEM,
-            id("nexus_node"),
-            new BlockItem(NEXUS_NODE, new Item.Properties())
+            NEXUS_NODE_ITEM_KEY,
+            new BlockItem(NEXUS_NODE, new Item.Properties()
+                    .setId(NEXUS_NODE_ITEM_KEY)
+                    .useBlockDescriptionPrefix())
     );
 
     public static final Item REQUEST_TERMINAL_ITEM = Registry.register(
             BuiltInRegistries.ITEM,
-            id("request_terminal"),
-            new BlockItem(REQUEST_TERMINAL, new Item.Properties())
+            REQUEST_TERMINAL_ITEM_KEY,
+            new BlockItem(REQUEST_TERMINAL, new Item.Properties()
+                    .setId(REQUEST_TERMINAL_ITEM_KEY)
+                    .useBlockDescriptionPrefix())
     );
 
     public static final Item NETWORK_LINKER = Registry.register(
             BuiltInRegistries.ITEM,
-            id("network_linker"),
-            new NetworkLinkerItem(new Item.Properties().stacksTo(1))
+            NETWORK_LINKER_ITEM_KEY,
+            new NetworkLinkerItem(new Item.Properties()
+                    .setId(NETWORK_LINKER_ITEM_KEY)
+                    .stacksTo(1))
     );
 
     // Block Entities
