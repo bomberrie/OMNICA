@@ -1,28 +1,28 @@
 package com.omnica.common.packet;
 
 import com.omnica.Omnica;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 import java.util.List;
 
 public record NodeSyncPayload(
         BlockPos pos,
         List<BlockPos> connections
-) implements CustomPayload {
-    public static final Id<NodeSyncPayload> ID = new Id<>(Omnica.id("node_sync"));
+) implements CustomPacketPayload {
+    public static final Type<NodeSyncPayload> TYPE = new Type<>(Omnica.id("node_sync"));
 
-    public static final PacketCodec<RegistryByteBuf, NodeSyncPayload> CODEC = PacketCodec.tuple(
-            BlockPos.PACKET_CODEC, NodeSyncPayload::pos,
-            BlockPos.PACKET_CODEC.collect(PacketCodecs.toList()), NodeSyncPayload::connections,
+    public static final StreamCodec<FriendlyByteBuf, NodeSyncPayload> STREAM_CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, NodeSyncPayload::pos,
+            BlockPos.STREAM_CODEC.apply(ByteBufCodecs.list()), NodeSyncPayload::connections,
             NodeSyncPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
-        return ID;
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

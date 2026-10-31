@@ -1,67 +1,66 @@
 package com.omnica.common.block;
 
-import com.mojang.serialization.MapCodec;
 import com.omnica.Omnica;
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
 import com.omnica.common.network.OmnicaNetworkManager;
-import net.minecraft.block.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.state.StateManager;
-import net.minecraft.state.property.DirectionProperty;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.ItemActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-public class NexusNodeBlock extends BlockWithEntity {
-    public static final MapCodec<NexusNodeBlock> CODEC = createCodec(NexusNodeBlock::new);
-    public static final DirectionProperty FACING = FacingBlock.FACING;
+public class NexusNodeBlock extends BaseEntityBlock {
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
 
-    protected static final VoxelShape UP_SHAPE = Block.createCuboidShape(2.0, 0.0, 2.0, 14.0, 8.0, 14.0);
-    protected static final VoxelShape DOWN_SHAPE = Block.createCuboidShape(2.0, 8.0, 2.0, 14.0, 16.0, 14.0);
-    protected static final VoxelShape NORTH_SHAPE = Block.createCuboidShape(2.0, 2.0, 8.0, 14.0, 14.0, 16.0);
-    protected static final VoxelShape SOUTH_SHAPE = Block.createCuboidShape(2.0, 2.0, 0.0, 14.0, 14.0, 8.0);
-    protected static final VoxelShape WEST_SHAPE = Block.createCuboidShape(8.0, 2.0, 2.0, 16.0, 14.0, 14.0);
-    protected static final VoxelShape EAST_SHAPE = Block.createCuboidShape(0.0, 2.0, 2.0, 8.0, 14.0, 14.0);
+    protected static final VoxelShape UP_SHAPE = Block.box(2.0, 0.0, 2.0, 14.0, 8.0, 14.0);
+    protected static final VoxelShape DOWN_SHAPE = Block.box(2.0, 8.0, 2.0, 14.0, 16.0, 14.0);
+    protected static final VoxelShape NORTH_SHAPE = Block.box(2.0, 2.0, 8.0, 14.0, 14.0, 16.0);
+    protected static final VoxelShape SOUTH_SHAPE = Block.box(2.0, 2.0, 0.0, 14.0, 14.0, 8.0);
+    protected static final VoxelShape WEST_SHAPE = Block.box(8.0, 2.0, 2.0, 16.0, 14.0, 14.0);
+    protected static final VoxelShape EAST_SHAPE = Block.box(0.0, 2.0, 2.0, 8.0, 14.0, 14.0);
 
-    public NexusNodeBlock(Settings settings) {
-        super(settings);
-        setDefaultState(getStateManager().getDefaultState().with(FACING, Direction.UP));
+    public NexusNodeBlock(BlockBehaviour.Properties properties) {
+        super(properties);
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
     @Override
-    protected MapCodec<? extends BlockWithEntity> getCodec() {
-        return CODEC;
-    }
-
-    @Override
-    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
 
     @Nullable
     @Override
-    public BlockState getPlacementState(ItemPlacementContext ctx) {
-        return getDefaultState().with(FACING, ctx.getSide());
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getClickedFace());
     }
 
     @Override
-    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return switch (state.get(FACING)) {
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return switch (state.getValue(FACING)) {
             case DOWN -> DOWN_SHAPE;
             case UP -> UP_SHAPE;
             case NORTH -> NORTH_SHAPE;
@@ -72,80 +71,76 @@ public class NexusNodeBlock extends BlockWithEntity {
     }
 
     @Override
-    public BlockRenderType getRenderType(BlockState state) {
-        return BlockRenderType.MODEL;
+    protected RenderShape getRenderShape(BlockState state) {
+        return RenderShape.MODEL;
     }
 
     @Nullable
     @Override
-    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new NexusNodeBlockEntity(pos, state);
     }
 
     @Override
-    public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
-        super.onPlaced(world, pos, state, placer, itemStack);
-        if (!world.isClient() && world instanceof ServerWorld serverWorld) {
-            OmnicaNetworkManager.get(serverWorld).registerNode(pos);
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            OmnicaNetworkManager.get(serverLevel).registerNode(pos);
         }
     }
 
     @Override
-    public void onStateReplaced(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved) {
-        if (!state.isOf(newState.getBlock())) {
-            if (!world.isClient() && world instanceof ServerWorld serverWorld) {
-                OmnicaNetworkManager.get(serverWorld).unregisterNode(pos);
-            }
-            super.onStateReplaced(state, world, pos, newState, moved);
+    public void destroy(LevelAccessor level, BlockPos pos, BlockState state) {
+        if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            OmnicaNetworkManager.get(serverLevel).unregisterNode(pos);
         }
+        super.destroy(level, pos, state);
     }
 
     @Override
-    protected ItemActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        if (stack.isOf(Omnica.NETWORK_LINKER)) {
-            // Let the linker item handle node connections
-            return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        if (stack.is(Omnica.NETWORK_LINKER)) {
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
-        if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
-            if (player.isSneaking()) {
-                if (!world.isClient()) {
-                    // Toggle mode between EXTRACTOR, INSERTER, BALANCED
+        if (level.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+            if (player.isShiftKeyDown()) {
+                if (!level.isClientSide()) {
                     NexusNodeBlockEntity.NodeMode nextMode = switch (nodeEntity.getMode()) {
                         case BALANCED -> NexusNodeBlockEntity.NodeMode.EXTRACTOR;
                         case EXTRACTOR -> NexusNodeBlockEntity.NodeMode.INSERTER;
                         case INSERTER -> NexusNodeBlockEntity.NodeMode.BALANCED;
                     };
                     nodeEntity.setMode(nextMode);
-                    player.sendMessage(Text.literal("Mode set to: " + nextMode.name()), true);
-                    world.playSound(null, pos, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 1.0f, 1.4f);
+                    player.sendOverlayMessage(Component.literal("Mode set to: " + nextMode.name()));
+                    level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 1.0f, 1.4f);
                 }
-                return ItemActionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             } else if (!stack.isEmpty()) {
-                if (!world.isClient()) {
+                if (!level.isClientSide()) {
                     nodeEntity.setFilterStack(stack.copyWithCount(1));
-                    player.sendMessage(Text.literal("Filter set to: " + stack.getName().getString()), true);
-                    world.playSound(null, pos, SoundEvents.ITEM_BUNDLE_INSERT, SoundCategory.BLOCKS, 1.0f, 1.2f);
+                    player.sendOverlayMessage(Component.literal("Filter set to: ").append(stack.getHoverName()));
+                    level.playSound(null, pos, SoundEvents.BUNDLE_INSERT, SoundSource.BLOCKS, 1.0f, 1.2f);
                 }
-                return ItemActionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
         }
-        return ItemActionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
-    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-        if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
-            if (!world.isClient()) {
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (level.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+            if (!level.isClientSide()) {
                 ItemStack currentFilter = nodeEntity.getFilterStack();
-                String filterName = currentFilter.isEmpty() ? "None" : currentFilter.getName().getString();
-                player.sendMessage(Text.literal(String.format("Node [%s] | Connections: %d | Filter: %s",
+                String filterName = currentFilter.isEmpty() ? "None" : currentFilter.getHoverName().getString();
+                player.sendOverlayMessage(Component.literal(String.format("Node [%s] | Connections: %d | Filter: %s",
                         nodeEntity.getMode().name(),
                         nodeEntity.getConnections().size(),
-                        filterName)), false);
+                        filterName)));
             }
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
-        return ActionResult.PASS;
+        return InteractionResult.PASS;
     }
 }

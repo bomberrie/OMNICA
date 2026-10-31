@@ -5,21 +5,16 @@ import com.omnica.common.block.NexusNodeBlock;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.BundleContentsComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.network.listener.ClientPlayPacketListener;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.BundleContents;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
@@ -46,14 +41,14 @@ public class NexusNodeBlockEntity extends BlockEntity {
     }
 
     public boolean addConnection(BlockPos target) {
-        if (target.equals(pos) || !pos.isWithinDistance(target, 32.5)) {
+        if (target.equals(worldPosition) || !worldPosition.closerThan(target, 32.5)) {
             return false;
         }
         boolean added = connections.add(target);
         if (added) {
-            markDirty();
-            if (world != null && !world.isClient()) {
-                world.updateListeners(pos, getCachedState(), getCachedState(), 3);
+            setChanged();
+            if (level != null && !level.isClientSide()) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
             }
         }
         return added;
@@ -62,9 +57,9 @@ public class NexusNodeBlockEntity extends BlockEntity {
     public boolean removeConnection(BlockPos target) {
         boolean removed = connections.remove(target);
         if (removed) {
-            markDirty();
-            if (world != null && !world.isClient()) {
-                world.updateListeners(pos, getCachedState(), getCachedState(), 3);
+            setChanged();
+            if (level != null && !level.isClientSide()) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
             }
         }
         return removed;
@@ -72,7 +67,7 @@ public class NexusNodeBlockEntity extends BlockEntity {
 
     public void clearConnections() {
         connections.clear();
-        markDirty();
+        setChanged();
     }
 
     public ItemStack getFilterStack() {
@@ -81,7 +76,7 @@ public class NexusNodeBlockEntity extends BlockEntity {
 
     public void setFilterStack(ItemStack stack) {
         this.filterStack = stack.copy();
-        markDirty();
+        setChanged();
     }
 
     public NodeMode getMode() {
@@ -90,99 +85,70 @@ public class NexusNodeBlockEntity extends BlockEntity {
 
     public void setMode(NodeMode mode) {
         this.mode = mode;
-        markDirty();
+        setChanged();
     }
 
-    /**
-     * Determines whether an item passes the node's configured filter.
-     * Deeply supports vanilla 1.21 Bundles as multi-item whitelists!
-     */
     public boolean allowsItem(ItemStack candidate) {
         if (filterStack.isEmpty()) {
             return true;
         }
 
-        BundleContentsComponent bundleContents = filterStack.get(DataComponentTypes.BUNDLE_CONTENTS);
+        BundleContents bundleContents = filterStack.get(DataComponents.BUNDLE_CONTENTS);
         if (bundleContents != null) {
-            for (ItemStack filterItem : bundleContents.iterate()) {
-                if (ItemStack.areItemsEqual(filterItem, candidate)) {
-                    return true;
-                }
-            }
-            return false;
+            return bundleContents.itemCopies().anyMatch(filterItem -> ItemStack.isSameItem(filterItem, candidate));
         }
 
-        return ItemStack.areItemsEqual(filterStack, candidate);
+        return ItemStack.isSameItem(filterStack, candidate);
     }
 
-    /**
-     * Resolves the attached inventory storage (Chest, Barrel, Crafter) via Fabric Transfer API.
-     */
     @Nullable
     public Storage<ItemVariant> getAttachedStorage() {
-        if (world == null) return null;
-        Direction facing = getCachedState().get(NexusNodeBlock.FACING);
-        BlockPos attachedPos = pos.offset(facing.getOpposite());
-        return ItemStorage.SIDED.find(world, attachedPos, facing);
+        if (level == null) return null;
+        Direction facing = getBlockState().getValue(NexusNodeBlock.FACING);
+        BlockPos attachedPos = worldPosition.relative(facing.getOpposite());
+        return ItemStorage.SIDED.find(level, attachedPos, facing);
     }
 
     public BlockPos getAttachedBlockPos() {
-        Direction facing = getCachedState().get(NexusNodeBlock.FACING);
-        return pos.offset(facing.getOpposite());
+        Direction facing = getBlockState().getValue(NexusNodeBlock.FACING);
+        return worldPosition.relative(facing.getOpposite());
     }
 
     @Override
-    protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        super.writeNbt(nbt, registries);
-
-        NbtList list = new NbtList();
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        var list = output.list("Connections", BlockPos.CODEC);
         for (BlockPos connection : connections) {
-            list.add(NbtHelper.fromBlockPos(connection));
+            list.add(connection);
         }
-        nbt.put("Connections", list);
 
         if (!filterStack.isEmpty()) {
-            nbt.put("FilterStack", filterStack.encode(registries));
+            output.store("FilterStack", ItemStack.OPTIONAL_CODEC, filterStack);
         }
 
-        nbt.putString("Mode", mode.name());
+        output.putString("Mode", mode.name());
     }
 
     @Override
-    protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        super.readNbt(nbt, registries);
-
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
         connections.clear();
-        NbtList list = nbt.getList("Connections", NbtElement.INT_ARRAY_TYPE);
-        for (int i = 0; i < list.size(); i++) {
-            NbtHelper.toBlockPos(list.getCompound(i), "Connections").ifPresent(connections::add);
+        for (BlockPos pos : input.listOrEmpty("Connections", BlockPos.CODEC)) {
+            connections.add(pos);
         }
 
-        if (nbt.contains("FilterStack")) {
-            filterStack = ItemStack.fromNbt(registries, nbt.getCompound("FilterStack")).orElse(ItemStack.EMPTY);
-        } else {
-            filterStack = ItemStack.EMPTY;
-        }
+        filterStack = input.read("FilterStack", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
 
-        if (nbt.contains("Mode")) {
-            try {
-                mode = NodeMode.valueOf(nbt.getString("Mode"));
-            } catch (IllegalArgumentException e) {
-                mode = NodeMode.BALANCED;
-            }
+        try {
+            mode = NodeMode.valueOf(input.getStringOr("Mode", "BALANCED"));
+        } catch (IllegalArgumentException e) {
+            mode = NodeMode.BALANCED;
         }
     }
 
     @Nullable
     @Override
-    public Packet<ClientPlayPacketListener> toUpdatePacket() {
-        return BlockEntityUpdateS2CPacket.create(this);
-    }
-
-    @Override
-    public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-        NbtCompound nbt = new NbtCompound();
-        writeNbt(nbt, registries);
-        return nbt;
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 }

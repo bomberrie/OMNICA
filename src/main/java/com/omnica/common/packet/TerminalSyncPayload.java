@@ -1,26 +1,26 @@
 package com.omnica.common.packet;
 
 import com.omnica.Omnica;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
 public record TerminalSyncPayload(
         List<ItemStack> availableItems
-) implements CustomPayload {
-    public static final Id<TerminalSyncPayload> ID = new Id<>(Omnica.id("terminal_sync"));
+) implements CustomPacketPayload {
+    public static final Type<TerminalSyncPayload> TYPE = new Type<>(Omnica.id("terminal_sync"));
 
-    public static final PacketCodec<RegistryByteBuf, TerminalSyncPayload> CODEC = PacketCodec.tuple(
-            ItemStack.PACKET_CODEC.collect(PacketCodecs.toList()), TerminalSyncPayload::availableItems,
+    public static final StreamCodec<RegistryFriendlyByteBuf, TerminalSyncPayload> STREAM_CODEC = StreamCodec.composite(
+            ItemStack.OPTIONAL_STREAM_CODEC.apply(ByteBufCodecs.list()), TerminalSyncPayload::availableItems,
             TerminalSyncPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
-        return ID;
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

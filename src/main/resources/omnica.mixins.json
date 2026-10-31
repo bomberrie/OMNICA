@@ -5,6 +5,7 @@
   "mixins": [
   ],
   "client": [
+    "MenuScreensAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

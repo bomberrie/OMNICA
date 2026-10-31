@@ -1,18 +1,17 @@
 package com.omnica.client.render;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.omnica.common.blockentity.NexusNodeBlockEntity;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import com.omnica.common.packet.TetherTransferPayload;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.*;
-import net.minecraft.client.render.model.json.ModelTransformationMode;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.Iterator;
@@ -25,34 +24,37 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class TetherRenderer {
     private static final List<InFlightTransfer> ACTIVE_TRANSFERS = new CopyOnWriteArrayList<>();
+    private static final ItemStackRenderState SHARED_ITEM_RENDER_STATE = new ItemStackRenderState();
 
     public record InFlightTransfer(
-            Vec3d start,
-            Vec3d end,
+            Vec3 start,
+            Vec3 end,
             ItemStack item,
             int totalTicks,
             long startWorldTime
     ) {}
 
     public static void addTransfer(TetherTransferPayload payload) {
-        Vec3d start = payload.from().toCenterPos();
-        Vec3d end = payload.to().toCenterPos();
-        long currentTime = MinecraftClient.getInstance().world != null ? MinecraftClient.getInstance().world.getTime() : 0;
+        Vec3 start = Vec3.atCenterOf(payload.from());
+        Vec3 end = Vec3.atCenterOf(payload.to());
+        Minecraft client = Minecraft.getInstance();
+        long currentTime = client.level != null ? client.level.getLevelData().getGameTime() : 0;
         ACTIVE_TRANSFERS.add(new InFlightTransfer(start, end, payload.item(), payload.durationTicks(), currentTime));
     }
 
-    public static void renderWorld(WorldRenderContext context) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) return;
+    public static void renderWorld(LevelRenderContext context) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return;
 
-        MatrixStack matrices = context.matrixStack();
-        Vec3d cameraPos = context.camera().getPos();
-        float tickDelta = context.tickCounter().getTickDelta(true);
-        long worldTime = client.world.getTime();
+        PoseStack matrices = context.poseStack();
+        SubmitNodeCollector collector = context.submitNodeCollector();
+        Vec3 cameraPos = client.gameRenderer.mainCamera().position();
+        float tickDelta = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        long worldTime = client.level.getLevelData().getGameTime();
 
-        // 1. Render In-Flight Items
+        // Render In-Flight Items
         if (!ACTIVE_TRANSFERS.isEmpty()) {
-            matrices.push();
+            matrices.pushPose();
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
             Iterator<InFlightTransfer> it = ACTIVE_TRANSFERS.iterator();
@@ -67,68 +69,63 @@ public class TetherRenderer {
                 }
 
                 // Smooth interpolation with slight arc
-                Vec3d currentPos = transfer.start().lerp(transfer.end(), progress);
+                Vec3 currentPos = transfer.start().lerp(transfer.end(), progress);
                 double arcHeight = Math.sin(progress * Math.PI) * 0.5;
-                Vec3d renderPos = currentPos.add(0, arcHeight, 0);
+                Vec3 renderPos = currentPos.add(0, arcHeight, 0);
 
-                matrices.push();
+                matrices.pushPose();
                 matrices.translate(renderPos.x, renderPos.y, renderPos.z);
                 matrices.scale(0.5f, 0.5f, 0.5f);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((float) (elapsed * 20.0)));
+                matrices.rotateDegrees(Axis.YP, (float) (elapsed * 20.0));
 
-                VertexConsumerProvider consumers = context.consumers();
-                if (consumers != null) {
-                    client.getItemRenderer().renderItem(
-                            transfer.item(),
-                            ModelTransformationMode.FIXED,
-                            LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                            OverlayTexture.DEFAULT_UV,
-                            matrices,
-                            consumers,
-                            client.world,
-                            0
-                    );
-                }
-                matrices.pop();
+                SHARED_ITEM_RENDER_STATE.clear();
+                client.getItemModelResolver().updateForTopItem(
+                        SHARED_ITEM_RENDER_STATE,
+                        transfer.item(),
+                        ItemDisplayContext.FIXED,
+                        client.level,
+                        null,
+                        0
+                );
+                SHARED_ITEM_RENDER_STATE.submit(matrices, collector, 0xF000F0, OverlayTexture.NO_OVERLAY, 0);
+
+                matrices.popPose();
             }
 
-            matrices.pop();
+            matrices.popPose();
         }
     }
 
     /**
      * Helper to render a luminous laser beam between two points.
      */
-    public static void renderBeam(MatrixStack matrices, VertexConsumer consumer, Vec3d start, Vec3d end, float r, float g, float b, float a) {
-        Vec3d dir = end.subtract(start);
+    public static void renderBeam(PoseStack.Pose pose, VertexConsumer consumer, Vec3 start, Vec3 end, float r, float g, float b, float a) {
+        Vec3 dir = end.subtract(start);
         float length = (float) dir.length();
         if (length < 0.01f) return;
 
-        matrices.push();
-        matrices.translate(start.x, start.y, start.z);
+        Matrix4f mat = new Matrix4f(pose.pose());
+        mat.translate((float) start.x, (float) start.y, (float) start.z);
 
         // Normalize direction and rotate beam matrix
-        Vec3d norm = dir.normalize();
+        Vec3 norm = dir.normalize();
         float pitch = (float) Math.asin(-norm.y);
         float yaw = (float) Math.atan2(norm.x, norm.z);
 
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotation(yaw));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotation(pitch));
+        mat.rotate(Axis.YP.rotation(yaw));
+        mat.rotate(Axis.XP.rotation(pitch));
 
-        Matrix4f mat = matrices.peek().getPositionMatrix();
         float radius = 0.04f;
 
         // Draw quad cross-section
         drawBeamQuad(consumer, mat, -radius, 0, radius, length, r, g, b, a);
         drawBeamQuad(consumer, mat, 0, -radius, length, radius, r, g, b, a);
-
-        matrices.pop();
     }
 
     private static void drawBeamQuad(VertexConsumer consumer, Matrix4f mat, float x0, float y0, float x1, float length, float r, float g, float b, float a) {
-        consumer.vertex(mat, x0, y0, 0).color(r, g, b, a).texture(0, 0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0, 1, 0);
-        consumer.vertex(mat, x1, y0, 0).color(r, g, b, a).texture(1, 0).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0, 1, 0);
-        consumer.vertex(mat, x1, y0, length).color(r, g, b, a).texture(1, 1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0, 1, 0);
-        consumer.vertex(mat, x0, y0, length).color(r, g, b, a).texture(0, 1).overlay(OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(0, 1, 0);
+        consumer.addVertex(mat, x0, y0, 0).setColor(r, g, b, a).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+        consumer.addVertex(mat, x1, y0, 0).setColor(r, g, b, a).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+        consumer.addVertex(mat, x1, y0, length).setColor(r, g, b, a).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+        consumer.addVertex(mat, x0, y0, length).setColor(r, g, b, a).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
     }
 }

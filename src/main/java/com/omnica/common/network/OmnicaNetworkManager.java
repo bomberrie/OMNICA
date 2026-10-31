@@ -9,12 +9,12 @@ import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,19 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * Executes item transfers mathematically via cached arrays, replacing thousands of hopper entity ticks.
  */
 public class OmnicaNetworkManager {
-    private static final Map<ServerWorld, OmnicaNetworkManager> MANAGERS = new ConcurrentHashMap<>();
+    private static final Map<ServerLevel, OmnicaNetworkManager> MANAGERS = new ConcurrentHashMap<>();
     private static final int TRANSFER_INTERVAL = 8; // Process transfers every 8 ticks (2.5 times per second)
 
-    private final ServerWorld world;
+    private final ServerLevel level;
     private final OmnicaGraph graph = new OmnicaGraph();
     private long tickCounter = 0;
 
-    private OmnicaNetworkManager(ServerWorld world) {
-        this.world = world;
+    private OmnicaNetworkManager(ServerLevel level) {
+        this.level = level;
     }
 
-    public static OmnicaNetworkManager get(ServerWorld world) {
-        return MANAGERS.computeIfAbsent(world, OmnicaNetworkManager::new);
+    public static OmnicaNetworkManager get(ServerLevel level) {
+        return MANAGERS.computeIfAbsent(level, OmnicaNetworkManager::new);
     }
 
     public OmnicaGraph getGraph() {
@@ -45,7 +45,7 @@ public class OmnicaNetworkManager {
 
     public void registerNode(BlockPos pos) {
         graph.addNode(pos);
-        if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+        if (level.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
             for (BlockPos connected : nodeEntity.getConnections()) {
                 graph.link(pos, connected);
             }
@@ -59,10 +59,10 @@ public class OmnicaNetworkManager {
     }
 
     public void syncNodeToClients(BlockPos pos) {
-        if (world.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+        if (level.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
             List<BlockPos> connectionsList = new ArrayList<>(nodeEntity.getConnections());
             NodeSyncPayload payload = new NodeSyncPayload(pos, connectionsList);
-            for (ServerPlayerEntity player : PlayerLookup.tracking(world, pos)) {
+            for (ServerPlayer player : PlayerLookup.tracking(level, pos)) {
                 ServerPlayNetworking.send(player, payload);
             }
         }
@@ -71,16 +71,16 @@ public class OmnicaNetworkManager {
     /**
      * Executes the centralized, zero-lag batch transfer pipeline.
      */
-    public void tick(ServerWorld world) {
+    public void tick(ServerLevel level) {
         tickCounter++;
         if (tickCounter % TRANSFER_INTERVAL != 0) {
             return;
         }
 
         for (BlockPos sourcePos : graph.getAllNodes()) {
-            if (!world.isChunkLoaded(sourcePos)) continue;
+            if (!level.isLoaded(sourcePos)) continue;
 
-            if (!(world.getBlockEntity(sourcePos) instanceof NexusNodeBlockEntity sourceNode)) {
+            if (!(level.getBlockEntity(sourcePos) instanceof NexusNodeBlockEntity sourceNode)) {
                 continue;
             }
 
@@ -107,9 +107,9 @@ public class OmnicaNetworkManager {
 
                 // Attempt to route to connected target nodes
                 for (BlockPos targetPos : sourceNode.getConnections()) {
-                    if (!world.isChunkLoaded(targetPos)) continue;
+                    if (!level.isLoaded(targetPos)) continue;
 
-                    if (!(world.getBlockEntity(targetPos) instanceof NexusNodeBlockEntity targetNode)) {
+                    if (!(level.getBlockEntity(targetPos) instanceof NexusNodeBlockEntity targetNode)) {
                         continue;
                     }
 
@@ -129,7 +129,7 @@ public class OmnicaNetworkManager {
 
                     // Atomic transaction transfer
                     try (Transaction transaction = Transaction.openOuter()) {
-                        long maxTransfer = Math.min(view.getAmount(), variant.getItem().getMaxCount());
+                        long maxTransfer = Math.min(view.getAmount(), variant.getItem().getDefaultMaxStackSize());
                         long extracted = sourceStorage.extract(variant, maxTransfer, transaction);
 
                         if (extracted > 0) {
@@ -139,14 +139,14 @@ public class OmnicaNetworkManager {
 
                                 // Notify nearby clients to render the laser tether animation
                                 ItemStack transferredStack = variant.toStack((int) inserted);
-                                int travelTicks = (int) Math.max(5, Math.sqrt(sourcePos.getSquaredDistance(targetPos)) * 1.5);
+                                int travelTicks = (int) Math.max(5, Math.sqrt(sourcePos.distSqr(targetPos)) * 1.5);
                                 TetherTransferPayload payload = new TetherTransferPayload(sourcePos, targetPos, transferredStack, travelTicks);
 
-                                for (ServerPlayerEntity player : PlayerLookup.tracking(world, sourcePos)) {
+                                for (ServerPlayer player : PlayerLookup.tracking(level, sourcePos)) {
                                     ServerPlayNetworking.send(player, payload);
                                 }
 
-                                world.playSound(null, sourcePos, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.BLOCKS, 0.4f, 2.0f);
+                                level.playSound(null, sourcePos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.4f, 2.0f);
                                 break; // Only one transfer per node per cycle
                             }
                         }

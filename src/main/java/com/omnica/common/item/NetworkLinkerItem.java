@@ -2,32 +2,26 @@ package com.omnica.common.item;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
 import com.omnica.common.blockentity.RequestTerminalBlockEntity;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.util.TypedActionResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-
-import java.util.Optional;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class NetworkLinkerItem extends Item {
-    public NetworkLinkerItem(Settings settings) {
-        super(settings);
+    public NetworkLinkerItem(Properties properties) {
+        super(properties);
     }
 
     private boolean isLinkable(BlockEntity be) {
@@ -49,92 +43,80 @@ public class NetworkLinkerItem extends Item {
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext context) {
-        World world = context.getWorld();
-        BlockPos clickedPos = context.getBlockPos();
-        PlayerEntity player = context.getPlayer();
-        ItemStack stack = context.getStack();
-        BlockEntity clickedBe = world.getBlockEntity(clickedPos);
+    public InteractionResult useOn(UseOnContext context) {
+        Level level = context.getLevel();
+        BlockPos clickedPos = context.getClickedPos();
+        Player player = context.getPlayer();
+        ItemStack stack = context.getItemInHand();
+        BlockEntity clickedBe = level.getBlockEntity(clickedPos);
 
         if (isLinkable(clickedBe)) {
-            if (world.isClient()) {
-                return ActionResult.SUCCESS;
+            if (level.isClientSide()) {
+                return InteractionResult.SUCCESS;
             }
 
-            NbtComponent customData = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
-            NbtCompound nbt = customData.copyNbt();
+            CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+            CompoundTag nbt = customData.copyTag();
 
-            if (nbt.contains("SelectedPos", NbtElement.INT_ARRAY_TYPE)) {
-                Optional<BlockPos> selectedPosOpt = NbtHelper.toBlockPos(nbt, "SelectedPos");
-                if (selectedPosOpt.isPresent()) {
-                    BlockPos selectedPos = selectedPosOpt.get();
+            if (nbt.contains("SelectedX")) {
+                int x = nbt.getInt("SelectedX").orElse(0);
+                int y = nbt.getInt("SelectedY").orElse(0);
+                int z = nbt.getInt("SelectedZ").orElse(0);
+                BlockPos selectedPos = new BlockPos(x, y, z);
 
-                    if (selectedPos.equals(clickedPos)) {
-                        nbt.remove("SelectedPos");
-                        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
-                        if (player != null) {
-                            player.sendMessage(Text.translatable("message.omnica.link_cleared").formatted(Formatting.YELLOW), true);
-                            world.playSound(null, clickedPos, SoundEvents.BLOCK_AMETHYST_BLOCK_BREAK, SoundCategory.PLAYERS, 0.8f, 1.0f);
-                        }
-                        return ActionResult.SUCCESS;
+                if (selectedPos.equals(clickedPos)) {
+                    nbt.remove("SelectedX");
+                    nbt.remove("SelectedY");
+                    nbt.remove("SelectedZ");
+                    stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+                    if (player != null) {
+                        player.sendOverlayMessage(Component.translatable("message.omnica.link_cleared").withStyle(ChatFormatting.YELLOW));
+                        level.playSound(null, clickedPos, SoundEvents.AMETHYST_BLOCK_BREAK, SoundSource.PLAYERS, 0.8f, 1.0f);
+                    }
+                    return InteractionResult.SUCCESS;
+                }
+
+                if (!selectedPos.closerThan(clickedPos, 32.5)) {
+                    if (player != null) {
+                        player.sendOverlayMessage(Component.translatable("message.omnica.out_of_range").withStyle(ChatFormatting.RED));
+                    }
+                    return InteractionResult.FAIL;
+                }
+
+                BlockEntity selectedBe = level.getBlockEntity(selectedPos);
+                if (isLinkable(selectedBe)) {
+                    linkNodes(selectedBe, clickedBe, selectedPos, clickedPos);
+
+                    if (player != null) {
+                        player.sendOverlayMessage(Component.translatable("message.omnica.node_linked",
+                                selectedPos.getX(), selectedPos.getY(), selectedPos.getZ(),
+                                clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()).withStyle(ChatFormatting.GREEN));
+                        level.playSound(null, clickedPos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.2f, 1.6f);
                     }
 
-                    if (!selectedPos.isWithinDistance(clickedPos, 32.5)) {
-                        if (player != null) {
-                            player.sendMessage(Text.translatable("message.omnica.out_of_range").formatted(Formatting.RED), true);
-                        }
-                        return ActionResult.FAIL;
-                    }
-
-                    BlockEntity selectedBe = world.getBlockEntity(selectedPos);
-                    if (isLinkable(selectedBe)) {
-                        linkNodes(selectedBe, clickedBe, selectedPos, clickedPos);
-
-                        if (player != null) {
-                            player.sendMessage(Text.translatable("message.omnica.node_linked",
-                                    selectedPos.getX(), selectedPos.getY(), selectedPos.getZ(),
-                                    clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()).formatted(Formatting.GREEN), true);
-                            world.playSound(null, clickedPos, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.PLAYERS, 1.2f, 1.6f);
-                        }
-
-                        nbt.remove("SelectedPos");
-                        stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
-                        return ActionResult.SUCCESS;
-                    }
+                    nbt.remove("SelectedX");
+                    nbt.remove("SelectedY");
+                    nbt.remove("SelectedZ");
+                    stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+                    return InteractionResult.SUCCESS;
                 }
             }
 
             // Save first selected node
-            nbt.put("SelectedPos", NbtHelper.fromBlockPos(clickedPos));
-            stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
+            nbt.putInt("SelectedX", clickedPos.getX());
+            nbt.putInt("SelectedY", clickedPos.getY());
+            nbt.putInt("SelectedZ", clickedPos.getZ());
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
 
             if (player != null) {
-                player.sendMessage(Text.literal(String.format("Selected Node at [%d, %d, %d]. Right-click target node to link.",
-                        clickedPos.getX(), clickedPos.getY(), clickedPos.getZ())).formatted(Formatting.AQUA), true);
-                world.playSound(null, clickedPos, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 1.0f, 1.2f);
+                player.sendOverlayMessage(Component.literal(String.format("Selected Node at [%d, %d, %d]. Right-click target node to link.",
+                        clickedPos.getX(), clickedPos.getY(), clickedPos.getZ())).withStyle(ChatFormatting.AQUA));
+                level.playSound(null, clickedPos, SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 1.0f, 1.2f);
             }
 
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
-        return ActionResult.PASS;
-    }
-
-    @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
-        ItemStack stack = user.getStackInHand(hand);
-        if (user.isSneaking()) {
-            NbtComponent customData = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
-            NbtCompound nbt = customData.copyNbt();
-            if (nbt.contains("SelectedPos")) {
-                nbt.remove("SelectedPos");
-                stack.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(nbt));
-                if (!world.isClient()) {
-                    user.sendMessage(Text.translatable("message.omnica.link_cleared").formatted(Formatting.YELLOW), true);
-                }
-                return TypedActionResult.success(stack);
-            }
-        }
-        return TypedActionResult.pass(stack);
+        return InteractionResult.PASS;
     }
 }

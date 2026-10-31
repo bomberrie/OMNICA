@@ -4,31 +4,28 @@ import com.omnica.Omnica;
 import com.omnica.common.crafter.CrafterCoupler;
 import com.omnica.common.network.OmnicaNetworkManager;
 import com.omnica.common.screen.RequestTerminalScreenHandler;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
 import net.fabricmc.fabric.api.transfer.v1.storage.StorageView;
 import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedScreenHandlerFactory<BlockPos> {
+public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedMenuProvider<BlockPos> {
     private final Set<BlockPos> connectedNodes = new HashSet<>();
 
     public RequestTerminalBlockEntity(BlockPos pos, BlockState state) {
@@ -40,17 +37,17 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedS
     }
 
     public boolean addConnection(BlockPos target) {
-        if (target.equals(pos) || !pos.isWithinDistance(target, 32.5)) {
+        if (target.equals(worldPosition) || !worldPosition.closerThan(target, 32.5)) {
             return false;
         }
         boolean added = connectedNodes.add(target);
-        if (added) markDirty();
+        if (added) setChanged();
         return added;
     }
 
     public boolean removeConnection(BlockPos target) {
         boolean removed = connectedNodes.remove(target);
-        if (removed) markDirty();
+        if (removed) setChanged();
         return removed;
     }
 
@@ -58,17 +55,17 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedS
      * Aggregates total stock available across all reachable nodes in the network.
      */
     public List<ItemStack> getAggregatedNetworkItems() {
-        if (!(world instanceof ServerWorld serverWorld)) {
+        if (!(level instanceof ServerLevel serverLevel)) {
             return Collections.emptyList();
         }
 
         Map<ItemVariant, Long> stockMap = new HashMap<>();
-        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverWorld);
+        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverLevel);
 
         for (BlockPos nodePos : connectedNodes) {
             for (BlockPos reachablePos : manager.getGraph().getNeighbors(nodePos)) {
-                if (!serverWorld.isChunkLoaded(reachablePos)) continue;
-                if (serverWorld.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
+                if (!serverLevel.isLoaded(reachablePos)) continue;
+                if (serverLevel.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
                     Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
                     if (storage != null && storage.supportsExtraction()) {
                         for (StorageView<ItemVariant> view : storage) {
@@ -93,21 +90,21 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedS
      * Extracts items from the connected network or triggers Crafters if needed.
      */
     public int fulfillRequest(ItemStack requested, int desiredAmount) {
-        if (!(world instanceof ServerWorld serverWorld)) {
+        if (!(level instanceof ServerLevel serverLevel)) {
             return 0;
         }
 
         ItemVariant targetVariant = ItemVariant.of(requested);
         int remaining = desiredAmount;
-        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverWorld);
+        OmnicaNetworkManager manager = OmnicaNetworkManager.get(serverLevel);
 
         // 1. Direct extraction from storage chests
         for (BlockPos nodePos : connectedNodes) {
             for (BlockPos reachablePos : manager.getGraph().getNeighbors(nodePos)) {
                 if (remaining <= 0) break;
-                if (!serverWorld.isChunkLoaded(reachablePos)) continue;
+                if (!serverLevel.isLoaded(reachablePos)) continue;
 
-                if (serverWorld.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
+                if (serverLevel.getBlockEntity(reachablePos) instanceof NexusNodeBlockEntity nodeEntity) {
                     Storage<ItemVariant> storage = nodeEntity.getAttachedStorage();
                     if (storage != null && storage.supportsExtraction()) {
                         try (Transaction tx = Transaction.openOuter()) {
@@ -126,10 +123,10 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedS
         if (remaining > 0) {
             for (BlockPos nodePos : connectedNodes) {
                 if (remaining <= 0) break;
-                if (serverWorld.getBlockEntity(nodePos) instanceof NexusNodeBlockEntity nodeEntity) {
-                    if (CrafterCoupler.isAttachedToCrafter(serverWorld, nodeEntity)) {
-                        Optional<ItemStack> crafted = CrafterCoupler.tryCraft(serverWorld, nodeEntity);
-                        if (crafted.isPresent() && ItemStack.areItemsEqual(crafted.get(), requested)) {
+                if (serverLevel.getBlockEntity(nodePos) instanceof NexusNodeBlockEntity nodeEntity) {
+                    if (CrafterCoupler.isAttachedToCrafter(serverLevel, nodeEntity)) {
+                        Optional<ItemStack> crafted = CrafterCoupler.tryCraft(serverLevel, nodeEntity);
+                        if (crafted.isPresent() && ItemStack.isSameItem(crafted.get(), requested)) {
                             remaining -= Math.min(remaining, crafted.get().getCount());
                         }
                     }
@@ -141,38 +138,36 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedS
     }
 
     @Override
-    public BlockPos getScreenOpeningData(ServerPlayerEntity player) {
-        return pos;
-    }
-
-    @Override
-    public Text getDisplayName() {
-        return Text.translatable("block.omnica.request_terminal");
+    public Component getDisplayName() {
+        return Component.translatable("block.omnica.request_terminal");
     }
 
     @Nullable
     @Override
-    public ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player) {
-        return new RequestTerminalScreenHandler(syncId, playerInventory, pos);
+    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+        return new RequestTerminalScreenHandler(containerId, playerInventory, worldPosition);
     }
 
     @Override
-    protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        super.writeNbt(nbt, registries);
-        NbtList list = new NbtList();
+    public BlockPos getScreenOpeningData(ServerPlayer player) {
+        return worldPosition;
+    }
+
+    @Override
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        var list = output.list("Connections", BlockPos.CODEC);
         for (BlockPos connection : connectedNodes) {
-            list.add(NbtHelper.fromBlockPos(connection));
+            list.add(connection);
         }
-        nbt.put("Connections", list);
     }
 
     @Override
-    protected void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-        super.readNbt(nbt, registries);
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
         connectedNodes.clear();
-        NbtList list = nbt.getList("Connections", NbtElement.INT_ARRAY_TYPE);
-        for (int i = 0; i < list.size(); i++) {
-            NbtHelper.toBlockPos(list.getCompound(i), "Connections").ifPresent(connectedNodes::add);
+        for (BlockPos pos : input.listOrEmpty("Connections", BlockPos.CODEC)) {
+            connectedNodes.add(pos);
         }
     }
 }

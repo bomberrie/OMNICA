@@ -1,30 +1,31 @@
 package com.omnica.common.packet;
 
 import com.omnica.Omnica;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.world.item.ItemStack;
 
 public record TetherTransferPayload(
         BlockPos from,
         BlockPos to,
         ItemStack item,
         int durationTicks
-) implements CustomPayload {
-    public static final Id<TetherTransferPayload> ID = new Id<>(Omnica.id("tether_transfer"));
+) implements CustomPacketPayload {
+    public static final Type<TetherTransferPayload> TYPE = new Type<>(Omnica.id("tether_transfer"));
 
-    public static final PacketCodec<RegistryByteBuf, TetherTransferPayload> CODEC = PacketCodec.tuple(
-            BlockPos.PACKET_CODEC, TetherTransferPayload::from,
-            BlockPos.PACKET_CODEC, TetherTransferPayload::to,
-            ItemStack.OPTIONAL_PACKET_CODEC, TetherTransferPayload::item,
-            net.minecraft.network.codec.PacketCodecs.VAR_INT, TetherTransferPayload::durationTicks,
+    public static final StreamCodec<RegistryFriendlyByteBuf, TetherTransferPayload> STREAM_CODEC = StreamCodec.composite(
+            BlockPos.STREAM_CODEC, TetherTransferPayload::from,
+            BlockPos.STREAM_CODEC, TetherTransferPayload::to,
+            ItemStack.OPTIONAL_STREAM_CODEC, TetherTransferPayload::item,
+            ByteBufCodecs.VAR_INT, TetherTransferPayload::durationTicks,
             TetherTransferPayload::new
     );
 
     @Override
-    public Id<? extends CustomPayload> getId() {
-        return ID;
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

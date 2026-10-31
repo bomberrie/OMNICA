@@ -7,128 +7,131 @@ import com.omnica.common.blockentity.RequestTerminalBlockEntity;
 import com.omnica.common.item.NetworkLinkerItem;
 import com.omnica.common.network.OmnicaNetworkManager;
 import com.omnica.common.packet.NodeSyncPayload;
-import com.omnica.common.packet.TetherTransferPayload;
 import com.omnica.common.packet.TerminalRequestPayload;
 import com.omnica.common.packet.TerminalSyncPayload;
+import com.omnica.common.packet.TetherTransferPayload;
 import com.omnica.common.screen.RequestTerminalScreenHandler;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.menu.v1.ExtendedMenuType;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
-import net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType;
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroups;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.sound.BlockSoundGroup;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import java.util.List;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Set;
 
 public class Omnica implements ModInitializer {
     public static final String MOD_ID = "omnica";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public static Identifier id(String path) {
-        return Identifier.of(MOD_ID, path);
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     // Blocks
     public static final Block NEXUS_NODE = Registry.register(
-            Registries.BLOCK,
+            BuiltInRegistries.BLOCK,
             id("nexus_node"),
-            new NexusNodeBlock(AbstractBlock.Settings.copy(Blocks.COPPER_BLOCK)
+            new NexusNodeBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .strength(2.0f, 6.0f)
-                    .sounds(BlockSoundGroup.COPPER)
-                    .nonOpaque())
+                    .sound(SoundType.COPPER)
+                    .noOcclusion())
     );
 
     public static final Block REQUEST_TERMINAL = Registry.register(
-            Registries.BLOCK,
+            BuiltInRegistries.BLOCK,
             id("request_terminal"),
-            new RequestTerminalBlock(AbstractBlock.Settings.copy(Blocks.COPPER_BLOCK)
+            new RequestTerminalBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .strength(2.5f, 6.0f)
-                    .sounds(BlockSoundGroup.COPPER))
+                    .sound(SoundType.COPPER))
     );
 
     // Items
     public static final Item NEXUS_NODE_ITEM = Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             id("nexus_node"),
-            new BlockItem(NEXUS_NODE, new Item.Settings())
+            new BlockItem(NEXUS_NODE, new Item.Properties())
     );
 
     public static final Item REQUEST_TERMINAL_ITEM = Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             id("request_terminal"),
-            new BlockItem(REQUEST_TERMINAL, new Item.Settings())
+            new BlockItem(REQUEST_TERMINAL, new Item.Properties())
     );
 
     public static final Item NETWORK_LINKER = Registry.register(
-            Registries.ITEM,
+            BuiltInRegistries.ITEM,
             id("network_linker"),
-            new NetworkLinkerItem(new Item.Settings().maxCount(1))
+            new NetworkLinkerItem(new Item.Properties().stacksTo(1))
     );
 
     // Block Entities
     public static final BlockEntityType<NexusNodeBlockEntity> NEXUS_NODE_BLOCK_ENTITY = Registry.register(
-            Registries.BLOCK_ENTITY_TYPE,
+            BuiltInRegistries.BLOCK_ENTITY_TYPE,
             id("nexus_node"),
-            FabricBlockEntityTypeBuilder.create(NexusNodeBlockEntity::new, NEXUS_NODE).build()
+            new BlockEntityType<>(NexusNodeBlockEntity::new, Set.of(NEXUS_NODE))
     );
 
     public static final BlockEntityType<RequestTerminalBlockEntity> REQUEST_TERMINAL_BLOCK_ENTITY = Registry.register(
-            Registries.BLOCK_ENTITY_TYPE,
+            BuiltInRegistries.BLOCK_ENTITY_TYPE,
             id("request_terminal"),
-            FabricBlockEntityTypeBuilder.create(RequestTerminalBlockEntity::new, REQUEST_TERMINAL).build()
+            new BlockEntityType<>(RequestTerminalBlockEntity::new, Set.of(REQUEST_TERMINAL))
     );
 
-    // Screen Handlers
-    public static final ScreenHandlerType<RequestTerminalScreenHandler> REQUEST_TERMINAL_SCREEN_HANDLER = Registry.register(
-            Registries.SCREEN_HANDLER,
+    // Menu Types
+    public static final MenuType<RequestTerminalScreenHandler> REQUEST_TERMINAL_SCREEN_HANDLER = Registry.register(
+            BuiltInRegistries.MENU,
             id("request_terminal"),
-            new ExtendedScreenHandlerType<>(RequestTerminalScreenHandler::new, BlockPos.PACKET_CODEC)
+            new ExtendedMenuType<>(RequestTerminalScreenHandler::new, BlockPos.STREAM_CODEC)
     );
 
     @Override
     public void onInitialize() {
-        LOGGER.info("[OMNICA] Initializing Vanilla-First Logistics Network...");
+        LOGGER.info("[OMNICA] Initializing Vanilla-First Logistics Network for Minecraft 26.3...");
 
         // Register Creative Tab Entries
-        ItemGroupEvents.modifyEntriesEvent(ItemGroups.REDSTONE).register(entries -> {
-            entries.add(NEXUS_NODE_ITEM);
-            entries.add(REQUEST_TERMINAL_ITEM);
-            entries.add(NETWORK_LINKER);
-        });
+        CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Identifier.parse("redstone_blocks")))
+                .register(entries -> {
+                    entries.accept(NEXUS_NODE_ITEM);
+                    entries.accept(REQUEST_TERMINAL_ITEM);
+                    entries.accept(NETWORK_LINKER);
+                });
 
         // Register Networking Payloads
-        PayloadTypeRegistry.playS2C().register(TetherTransferPayload.ID, TetherTransferPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(NodeSyncPayload.ID, NodeSyncPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(TerminalSyncPayload.ID, TerminalSyncPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(TerminalRequestPayload.ID, TerminalRequestPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TetherTransferPayload.TYPE, TetherTransferPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(NodeSyncPayload.TYPE, NodeSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TerminalSyncPayload.TYPE, TerminalSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TerminalRequestPayload.TYPE, TerminalRequestPayload.STREAM_CODEC);
 
         // Handle Terminal Requests from Clients
-        ServerPlayNetworking.registerGlobalReceiver(TerminalRequestPayload.ID, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(TerminalRequestPayload.TYPE, (payload, context) -> {
             context.server().execute(() -> {
-                if (context.player().getServerWorld().getBlockEntity(payload.terminalPos()) instanceof RequestTerminalBlockEntity terminal) {
+                if (context.player().level().getBlockEntity(payload.terminalPos()) instanceof RequestTerminalBlockEntity terminal) {
                     int fulfilled = terminal.fulfillRequest(payload.item(), payload.count());
                     if (fulfilled > 0) {
                         ItemStack delivered = payload.item().copyWithCount(fulfilled);
-                        context.player().giveItemStack(delivered);
-                        context.player().getServerWorld().playSound(null, payload.terminalPos(), SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.8f, 1.4f);
+                        context.player().addItem(delivered);
+                        context.player().level().playSound(null, payload.terminalPos(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.8f, 1.4f);
                     }
                     // Sync refreshed network stock back to player
                     List<ItemStack> updatedStock = terminal.getAggregatedNetworkItems();
@@ -138,8 +141,8 @@ public class Omnica implements ModInitializer {
         });
 
         // Register Server Tick Event for Zero-Lag Centralized Transfers
-        ServerTickEvents.END_WORLD_TICK.register(world -> {
-            OmnicaNetworkManager.get(world).tick(world);
+        ServerTickEvents.END_LEVEL_TICK.register(level -> {
+            OmnicaNetworkManager.get(level).tick(level);
         });
 
         LOGGER.info("[OMNICA] Core subsystems ready.");

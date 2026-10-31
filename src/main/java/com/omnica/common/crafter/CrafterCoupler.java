@@ -1,68 +1,64 @@
 package com.omnica.common.crafter;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
-import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
-import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
-import net.fabricmc.fabric.api.transfer.v1.transaction.Transaction;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CrafterBlock;
-import net.minecraft.block.entity.CrafterBlockEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeType;
-import net.minecraft.recipe.input.CraftingRecipeInput;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.CrafterBlockEntity;
 
 import java.util.Optional;
 
 /**
- * Native coupling with vanilla 1.21 Crafters.
+ * Native coupling with vanilla Crafters.
  * Monitors recipe readiness, pulses the Crafter, and captures crafted output for network distribution.
  */
 public class CrafterCoupler {
 
-    public static boolean isAttachedToCrafter(ServerWorld world, NexusNodeBlockEntity node) {
+    public static boolean isAttachedToCrafter(ServerLevel level, NexusNodeBlockEntity node) {
         BlockPos attachedPos = node.getAttachedBlockPos();
-        return world.getBlockState(attachedPos).isOf(Blocks.CRAFTER);
+        return level.getBlockState(attachedPos).is(Blocks.CRAFTER);
     }
 
     /**
      * Attempts to execute an automated craft cycle on an attached Crafter if inputs are ready.
      */
-    public static Optional<ItemStack> tryCraft(ServerWorld world, NexusNodeBlockEntity node) {
+    public static Optional<ItemStack> tryCraft(ServerLevel level, NexusNodeBlockEntity node) {
         BlockPos attachedPos = node.getAttachedBlockPos();
-        if (!(world.getBlockEntity(attachedPos) instanceof CrafterBlockEntity crafter)) {
+        if (!(level.getBlockEntity(attachedPos) instanceof CrafterBlockEntity crafter)) {
             return Optional.empty();
         }
 
-        CraftingRecipeInput recipeInput = crafter.createRecipeInput();
-        Optional<RecipeEntry<CraftingRecipe>> match = world.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, recipeInput, world);
+        CraftingInput recipeInput = CraftingInput.of(3, 3, crafter.getItems());
+        Optional<RecipeHolder<CraftingRecipe>> match = level.recipeAccess().getRecipeFor(RecipeType.CRAFTING, recipeInput, level);
 
         if (match.isEmpty()) {
             return Optional.empty();
         }
 
-        RecipeEntry<CraftingRecipe> recipeEntry = match.get();
-        ItemStack result = recipeEntry.value().craft(recipeInput, world.getRegistryManager());
+        RecipeHolder<CraftingRecipe> recipeHolder = match.get();
+        ItemStack result = recipeHolder.value().assemble(recipeInput);
         if (result.isEmpty()) {
             return Optional.empty();
         }
 
         // Consume ingredients from the Crafter grid
-        for (int i = 0; i < crafter.size(); i++) {
-            ItemStack stackInSlot = crafter.getStack(i);
+        for (int i = 0; i < crafter.getContainerSize(); i++) {
+            ItemStack stackInSlot = crafter.getItem(i);
             if (!stackInSlot.isEmpty()) {
-                stackInSlot.decrement(1);
-                crafter.setStack(i, stackInSlot);
+                stackInSlot.shrink(1);
+                crafter.setItem(i, stackInSlot);
             }
         }
 
         // Trigger Crafter sound & visual feedback
-        world.playSound(null, attachedPos, SoundEvents.BLOCK_CRAFTER_CRAFT, SoundCategory.BLOCKS, 1.0f, 1.0f);
+        level.playSound(null, attachedPos, SoundEvents.CRAFTER_CRAFT, SoundSource.BLOCKS, 1.0f, 1.0f);
 
         return Optional.of(result);
     }

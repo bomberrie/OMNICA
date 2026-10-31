@@ -4,24 +4,27 @@ import com.omnica.Omnica;
 import com.omnica.common.blockentity.RequestTerminalBlockEntity;
 import com.omnica.common.packet.TerminalSyncPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class RequestTerminalScreenHandler extends ScreenHandler {
+public class RequestTerminalScreenHandler extends AbstractContainerMenu {
     private final BlockPos terminalPos;
-    private final PlayerInventory playerInventory;
+    private final Inventory playerInventory;
     private final List<ItemStack> clientNetworkItems = new ArrayList<>();
 
-    public RequestTerminalScreenHandler(int syncId, PlayerInventory playerInventory, BlockPos pos) {
+    public RequestTerminalScreenHandler(int syncId, Inventory playerInventory) {
+        this(syncId, playerInventory, BlockPos.ZERO);
+    }
+
+    public RequestTerminalScreenHandler(int syncId, Inventory playerInventory, BlockPos pos) {
         super(Omnica.REQUEST_TERMINAL_SCREEN_HANDLER, syncId);
         this.terminalPos = pos;
         this.playerInventory = playerInventory;
@@ -39,13 +42,13 @@ public class RequestTerminalScreenHandler extends ScreenHandler {
         }
 
         // Initial sync of network items to opening player
-        if (playerInventory.player instanceof ServerPlayerEntity serverPlayer) {
+        if (playerInventory.player instanceof ServerPlayer serverPlayer) {
             syncNetworkStock(serverPlayer);
         }
     }
 
-    public void syncNetworkStock(ServerPlayerEntity player) {
-        if (player.getServerWorld().getBlockEntity(terminalPos) instanceof RequestTerminalBlockEntity terminal) {
+    public void syncNetworkStock(ServerPlayer player) {
+        if (player.level().getBlockEntity(terminalPos) instanceof RequestTerminalBlockEntity terminal) {
             List<ItemStack> stock = terminal.getAggregatedNetworkItems();
             ServerPlayNetworking.send(player, new TerminalSyncPayload(stock));
         }
@@ -65,32 +68,32 @@ public class RequestTerminalScreenHandler extends ScreenHandler {
     }
 
     @Override
-    public ItemStack quickMove(PlayerEntity player, int slotIndex) {
+    public ItemStack quickMoveStack(Player player, int slotIndex) {
         ItemStack itemStack = ItemStack.EMPTY;
         Slot slot = this.slots.get(slotIndex);
-        if (slot != null && slot.hasStack()) {
-            ItemStack originalStack = slot.getStack();
+        if (slot != null && slot.hasItem()) {
+            ItemStack originalStack = slot.getItem();
             itemStack = originalStack.copy();
 
             if (slotIndex < 27) {
-                if (!this.insertItem(originalStack, 27, 36, false)) {
+                if (!this.moveItemStackTo(originalStack, 27, 36, false)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (!this.insertItem(originalStack, 0, 27, false)) {
+            } else if (!this.moveItemStackTo(originalStack, 0, 27, false)) {
                 return ItemStack.EMPTY;
             }
 
             if (originalStack.isEmpty()) {
-                slot.setStack(ItemStack.EMPTY);
+                slot.set(ItemStack.EMPTY);
             } else {
-                slot.markDirty();
+                slot.setChanged();
             }
         }
         return itemStack;
     }
 
     @Override
-    public boolean canUse(PlayerEntity player) {
-        return player.squaredDistanceTo(terminalPos.getX() + 0.5, terminalPos.getY() + 0.5, terminalPos.getZ() + 0.5) <= 64.0;
+    public boolean stillValid(Player player) {
+        return player.distanceToSqr(terminalPos.getX() + 0.5, terminalPos.getY() + 0.5, terminalPos.getZ() + 0.5) <= 64.0;
     }
 }
