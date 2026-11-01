@@ -1,6 +1,7 @@
 package com.omnica.common.network;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
+import com.omnica.common.blockentity.RequestTerminalBlockEntity;
 import com.omnica.common.config.OmnicaConfig;
 import com.omnica.common.packet.NodeSyncPayload;
 import com.omnica.common.packet.TetherTransferPayload;
@@ -55,8 +56,26 @@ public class OmnicaNetworkManager {
     }
 
     public void unregisterNode(BlockPos pos) {
+        Set<BlockPos> neighbors = new HashSet<>(graph.getNeighbors(pos));
+        if (level.getBlockEntity(pos) instanceof NexusNodeBlockEntity nodeEntity) {
+            neighbors.addAll(nodeEntity.getConnections());
+            nodeEntity.clearConnections();
+        }
         graph.removeNode(pos);
-        syncNodeToClients(pos);
+
+        for (BlockPos neighbor : neighbors) {
+            if (level.getBlockEntity(neighbor) instanceof NexusNodeBlockEntity neighborNode) {
+                neighborNode.removeConnection(pos);
+                syncNodeToClients(neighbor);
+            } else if (level.getBlockEntity(neighbor) instanceof RequestTerminalBlockEntity neighborTerm) {
+                neighborTerm.removeConnection(pos);
+            }
+        }
+
+        NodeSyncPayload emptyPayload = new NodeSyncPayload(pos, Collections.emptyList());
+        for (ServerPlayer player : PlayerLookup.tracking(level, pos)) {
+            ServerPlayNetworking.send(player, emptyPayload);
+        }
     }
 
     public void syncNodeToClients(BlockPos pos) {
@@ -79,11 +98,30 @@ public class OmnicaNetworkManager {
             return;
         }
 
+        List<BlockPos> deadNodes = new ArrayList<>();
         for (BlockPos sourcePos : graph.getAllNodes()) {
             if (!level.isLoaded(sourcePos)) continue;
 
             if (!(level.getBlockEntity(sourcePos) instanceof NexusNodeBlockEntity sourceNode)) {
+                deadNodes.add(sourcePos);
                 continue;
+            }
+
+            // Prune any stale connections pointing to destroyed blocks
+            List<BlockPos> staleTargets = new ArrayList<>();
+            for (BlockPos targetPos : sourceNode.getConnections()) {
+                if (level.isLoaded(targetPos)) {
+                    var targetBe = level.getBlockEntity(targetPos);
+                    if (!(targetBe instanceof NexusNodeBlockEntity || targetBe instanceof RequestTerminalBlockEntity)) {
+                        staleTargets.add(targetPos);
+                    }
+                }
+            }
+            if (!staleTargets.isEmpty()) {
+                for (BlockPos stale : staleTargets) {
+                    sourceNode.removeConnection(stale);
+                }
+                syncNodeToClients(sourcePos);
             }
 
             // Inserter-only nodes do not extract items
@@ -159,6 +197,10 @@ public class OmnicaNetworkManager {
                     }
                 }
             }
+        }
+
+        for (BlockPos dead : deadNodes) {
+            unregisterNode(dead);
         }
     }
 }

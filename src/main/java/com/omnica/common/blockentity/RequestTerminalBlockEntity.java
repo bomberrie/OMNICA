@@ -52,6 +52,19 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
         return removed;
     }
 
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level != null && !level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            for (BlockPos neighbor : new HashSet<>(connectedNodes)) {
+                if (serverLevel.getBlockEntity(neighbor) instanceof NexusNodeBlockEntity node) {
+                    node.removeConnection(worldPosition);
+                    OmnicaNetworkManager.get(serverLevel).syncNodeToClients(neighbor);
+                }
+            }
+        }
+    }
+
     private List<NexusNodeBlockEntity> collectReachableNodes(ServerLevel serverLevel) {
         Set<BlockPos> visited = new HashSet<>();
         Queue<BlockPos> queue = new ArrayDeque<>(connectedNodes);

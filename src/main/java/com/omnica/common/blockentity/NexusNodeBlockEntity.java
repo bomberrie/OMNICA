@@ -2,6 +2,7 @@ package com.omnica.common.blockentity;
 
 import com.omnica.Omnica;
 import com.omnica.common.block.NexusNodeBlock;
+import com.omnica.common.network.OmnicaNetworkManager;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemVariant;
 import net.fabricmc.fabric.api.transfer.v1.storage.Storage;
@@ -9,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.BundleContents;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -69,6 +71,17 @@ public class NexusNodeBlockEntity extends BlockEntity {
     public void clearConnections() {
         connections.clear();
         setChanged();
+        if (level != null && !level.isClientSide()) {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        if (level != null && !level.isClientSide() && level instanceof ServerLevel serverLevel) {
+            OmnicaNetworkManager.get(serverLevel).unregisterNode(worldPosition);
+        }
     }
 
     public ItemStack getFilterStack() {

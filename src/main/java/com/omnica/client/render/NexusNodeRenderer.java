@@ -32,7 +32,20 @@ public class NexusNodeRenderer implements BlockEntityRenderer<NexusNodeBlockEnti
     public void extractRenderState(NexusNodeBlockEntity entity, NexusNodeRenderState state, float partialTick, Vec3 cameraPos, ModelFeatureRenderer.CrumblingOverlay crumblingOverlay) {
         BlockEntityRenderState.extractBase(entity, state, crumblingOverlay);
         state.connections.clear();
-        state.connections.addAll(entity.getConnections());
+        if (entity.getLevel() != null) {
+            for (BlockPos target : entity.getConnections()) {
+                if (entity.getLevel().isLoaded(target)) {
+                    var targetBe = entity.getLevel().getBlockEntity(target);
+                    if (targetBe instanceof NexusNodeBlockEntity || targetBe instanceof com.omnica.common.blockentity.RequestTerminalBlockEntity) {
+                        state.connections.add(target);
+                    }
+                } else {
+                    state.connections.add(target);
+                }
+            }
+        } else {
+            state.connections.addAll(entity.getConnections());
+        }
     }
 
     @Override
