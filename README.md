@@ -8,136 +8,130 @@
 [![Author](https://img.shields.io/badge/Author-Bomberrie-purple?logo=github)](https://github.com/Bomberrie)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**The Vanilla-First Logistics & Storage Network for Minecraft.**
+**A vanilla-aligned item logistics and wireless storage network mod for Minecraft.**
 
-**OMNICA** replaces messy hopper lines, noisy dropper towers, and lag-heavy water streams with a clean, magical wireless item network. Connect your chests, barrels, and auto-crafters across your base using resonant amethyst crystals and copper conductors — with **zero custom ores**, **zero energy fuels**, and **zero lag**.
+OMNICA implements a graph-based logistics engine that routes items across container inventories using Fabric's native Transfer API. Utilizing vanilla materials (Copper, Amethyst, Redstone, and Crafters), the mod establishes directed node networks that transfer item stacks without hopper polling overhead, physical entity pipelines, or external energy systems.
 
 ![OMNICA Network Overview](docs/images/network_overview.png)
 
 ---
 
-## ✨ Why OMNICA?
+## System Overview & Performance
 
-Traditional Minecraft sorting systems and pipe mods often feel either clunky or out of place:
-- **No Hopper Lag**: Hoppers constantly check the world for items above them every tick. OMNICA uses a mathematical graph routing engine built on Fabric's native Transfer API — moving entire stacks smoothly without dropping server ticks per second (TPS).
-- **100% Vanilla-First**: No new worldgen ores to hunt for, no RF/FE generators, and no oil refineries. Everything is crafted with items already in vanilla: **Copper, Amethyst, Redstone, and Crafters**.
-- **Watch Your Items Fly**: Items don't disappear into invisible black boxes. You can see luminous amethyst laser tethers linking your chests, and watch your items physically float and glide along radiant arcs through the air!
-- **Works with Modern Minecraft**: Native support for **Minecraft 26.3 ("Wilderness Bound")**, **Java 25**, and 1.21+ features like **Bundles** and the **Crafter**.
+OMNICA replaces standard hopper lines and dropper towers with deterministic node-to-node routing:
+
+- **Optimized Throughput**: Traditional hoppers execute continuous bounding-box entity checks and inventory polling every game tick. OMNICA computes item routing on fixed tick intervals using transaction-safe Fabric Transfer API (`Storage<ItemVariant>`) operations, maintaining consistent tick rates in complex networks.
+- **Vanilla Integration**: Requires zero custom worldgen ores or external energy currencies (RF/FE). All components are fabricated exclusively from vanilla materials.
+- **In-World Visualization**: Transfers render via dynamic 3D double-sided luminous laser tethers and interpolated item flight paths along vector trajectories.
+- **Modern Compatibility**: Engineered for **Minecraft 26.3 ("Wilderness Bound")** and **Java 25**, fully leveraging container components such as **Bundles** and the **Crafter**.
 
 ---
 
-## 🛠️ How It Works: Player Guide
+## Network Components & Mechanics
 
-OMNICA is designed to be simple to pick up, yet deep enough to automate your entire survival base.
+### 1. Nexus Node
+The primary endpoint block placed directly on container surfaces (Chests, Double Chests, Barrels, Crafters, and Droppers).
 
-### 1. Nexus Nodes
-The building block of your network. Attach a **Nexus Node** directly against any container:
-- Regular Chests & Double Chests
-- Trapped Chests & Barrels
-- Vanilla Crafters & Droppers
+#### Routing Modes
+Interact with a placed node using an empty hand to cycle operating modes:
+- **Extractor (Cyan)**: Pulls items from the attached inventory and injects them into connected network paths.
+- **Inserter (Purple)**: Accepts routed items from the network and inserts them into the attached inventory.
+- **Balanced (Gold)**: Bidirectional mode that equalizes item distributions across connected nodes.
 
-#### Node Modes
-Right-click or shift-right-click a placed node with an empty hand to switch its operating mode:
-- 🔵 **Extractor (Cyan)**: Actively extracts items out of this container and sends them into the network.
-- 🟣 **Inserter (Purple)**: Receives items from the network and stores them inside this container.
-- 🟡 **Balanced (Gold)**: Can both extract and receive items, keeping connected inventories equalized.
-
-#### Directional Filters
-Want a chest to only store Iron Ingots, or an auto-smelter to only receive raw ores?
-- **Single Item Filter**: Right-click the Nexus Node while holding any item to set it as an exclusive filter.
-- **Bundle Multi-Filter (Up to 64 Items)**: Right-click the node with a filled vanilla **Bundle**! The node will read the contents of the bundle and whitelist all items inside it at once.
-- **Clear Filter**: Sneak-right-click the node with an empty hand while already in Balanced mode to clear any active filter.
+#### Filtering Pipeline
+- **Single Item Filter**: Right-click the node with any item stack to restrict operations exclusively to that item type.
+- **Bundle Multi-Filter (Up to 64 items)**: Right-click the node with a filled vanilla **Bundle**. The node decodes the bundle container component to whitelist all contained item variants simultaneously.
+- **Clear Filter**: Sneak-right-click with an empty hand while in Balanced mode to clear all assigned filter entries.
 
 ---
 
 ### 2. Nexus Linker
-The **Nexus Linker** is your network tuning tool.
-- **Link Nodes**: Right-click a starting Nexus Node, walk over to your target node (up to 32 blocks away by default), and right-click it. You will hear an amethyst chime and see a radiant laser tether establish between them!
-- **Reset Selection**: Right-click the same node again or right-click into the air while sneaking to clear your current selection.
-- **Multi-Node Networks**: A single node can connect to multiple neighbors, forming a unified web of chests across your base.
+A configuration tool used to establish and modify network topology.
+- **Establishing Connections**: Right-click an initial Nexus Node to select its coordinates, then right-click a target node (up to the configured maximum distance, default 32 blocks) to establish a bidirectional tether.
+- **Clear Selection**: Sneak-right-click in the air or interact with the currently selected node to cancel linking.
+- **Network Topology**: Nodes support multi-connection branching, allowing the creation of complex mesh or tree network topologies across bases.
 
 ![Linking Nexus Nodes with the Nexus Linker](docs/images/node_linking.png)
 
 ---
 
 ### 3. Request Terminal
-The ultimate command center for your storage room.
-- Place an **Omnica Request Terminal** anywhere adjacent to a Nexus Node.
-- Right-click the terminal to open the search interface.
-- **Instant Search**: Type the name of any item in the search bar.
-- **One-Click Delivery**: Left-click any item in the terminal to pull a stack directly from your remote chests into your inventory!
+The central user interface for network-wide inventory querying and extraction.
+- **Placement**: Place adjacent to any existing Nexus Node on the network.
+- **Search Pipeline**: Provides instant case-insensitive substring searching across all aggregated network inventories.
+- **Extraction Protocol**: Left-click any indexed item stack to dispatch an extraction transaction directly into player inventory slots.
 
 ![Omnica Request Terminal Interface](docs/images/terminal_gui.png)
 
 ---
 
-## 🔨 Crafting Recipes
+## Crafting Recipes
 
-All items in OMNICA are crafted using 100% vanilla ingredients.
+All components are crafted using standard vanilla recipes.
 
 ### Nexus Node (Yields 4x)
-Crafted at a standard Crafting Table using Copper Ingots, Amethyst, and Redstone:
+Crafted at a Crafting Table with Copper Ingots, Amethyst Shard, and Redstone Dust:
 
 ```
 [       ] [ Amethyst Shard ] [       ]
 [Redstone] [  Copper Ingot  ] [Redstone]
 [ Copper ] [  Copper Ingot  ] [ Copper ]
 ```
-- **Ingredients**: 1 Amethyst Shard, 2 Redstone Dust, 5 Copper Ingots.
+- **Ingredients**: 1 Amethyst Shard, 2 Redstone Dust, 5 Copper Ingots
 - **Yield**: **4x Nexus Nodes**
 
 ---
 
 ### Nexus Linker (Yields 1x)
-A handheld tuning tool crafted like a wand:
+Crafted as a tuning implement:
 
 ```
 [       ] [       ] [ Amethyst Shard ]
 [       ] [Redstone] [       ]
 [ Copper ] [       ] [       ]
 ```
-- **Ingredients**: 1 Amethyst Shard, 1 Redstone Dust, 1 Copper Ingot.
+- **Ingredients**: 1 Amethyst Shard, 1 Redstone Dust, 1 Copper Ingot
 - **Yield**: **1x Nexus Linker**
 
 ---
 
 ### Omnica Request Terminal (Yields 1x)
-The central logistics interface, powered by the vanilla Crafter:
+Constructed using an Amethyst Block, a Crafter, Redstone Dust, and Copper Ingots:
 
 ```
 [ Copper ] [ Amethyst Block ] [ Copper ]
 [Redstone] [     Crafter    ] [Redstone]
 [ Copper ] [  Copper Ingot  ] [ Copper ]
 ```
-- **Ingredients**: 1 Amethyst Block, 1 Vanilla Crafter, 2 Redstone Dust, 5 Copper Ingots.
+- **Ingredients**: 1 Amethyst Block, 1 Vanilla Crafter, 2 Redstone Dust, 5 Copper Ingots
 - **Yield**: **1x Omnica Request Terminal**
 
 ---
 
-## ⚙️ Mod Menu & Configuration
+## Configuration
 
-If you have **Mod Menu** installed, you can configure OMNICA directly from the in-game settings screen! Click **Mods** → **OMNICA** → **Configure**.
+When **Mod Menu** is installed, options can be configured via the client interface (**Mods** -> **OMNICA** -> **Configure**).
 
 ![In-Game Mod Menu Configuration](docs/images/config_screen.png)
 
-All settings are also saved to `config/omnica.json`:
+Configuration parameters are persisted to `config/omnica.json`:
 
 | Setting | Default | Range | Description |
 | :--- | :---: | :---: | :--- |
-| **Max Link Distance** | `32` | `8 - 128 blocks` | Maximum distance allowed between two linked nodes. Increase for mega-bases! |
-| **Transfer Interval** | `8 ticks` | `1 - 40 ticks` | How often the network transfers items. 8 ticks = 0.4s. Lower is faster; higher is ultra-lightweight. |
-| **Batch Size** | `64 items` | `1 - 64` | Maximum stack quantity moved in a single transfer pulse. |
-| **Render Tether Beams** | `ON` | `ON / OFF` | Renders vibrant amethyst laser beams between connected nodes. |
-| **Render Floating Items** | `ON` | `ON / OFF` | Shows traveling item stacks physically gliding through the air. |
-| **Network Sound Effects** | `ON` | `ON / OFF` | Toggles the musical amethyst chime sounds when items transfer. |
+| **Max Link Distance** | `32` | `8 - 128 blocks` | Maximum distance allowed between two linked nodes. |
+| **Transfer Interval** | `8 ticks` | `1 - 40 ticks` | Execution interval for network transfer pulses (8 ticks = 0.4s). |
+| **Batch Size** | `64 items` | `1 - 64` | Maximum item stack count moved per transfer pulse. |
+| **Render Tether Beams** | `ON` | `ON / OFF` | Controls rendering of 3D luminous laser tethers between nodes. |
+| **Render Floating Items** | `ON` | `ON / OFF` | Controls rendering of traveling item entities along network paths. |
+| **Network Sound Effects** | `ON` | `ON / OFF` | Controls audio playback during network transfer events. |
 
 ---
 
-## 💻 Developer & Build Options
+## Build & Development
 
-OMNICA is built with modern Gradle and Fabric Loom for Minecraft 26.3 and Java 25.
+OMNICA uses Gradle with Fabric Loom for compilation and environment orchestration.
 
-### System Requirements
+### Prerequisites
 - **Java Development Kit (JDK) 25** (recommended: [Eclipse Adoptium Temurin 25](https://adoptium.net/))
 - **Fabric Loader 0.20.1+**
 - **Fabric API 0.165.0+26.3**
@@ -152,15 +146,15 @@ cd omnica
 # Compile and package the mod jar
 ./gradlew build
 ```
-The compiled jar will be located at:
+Compiled binaries are output to:
 ```
 build/libs/omnica-0.1.0-alpha.jar
 ```
 
-### Development Launch Options
+### Development Environments
 
 ```bash
-# Launch test Minecraft client with hot-reloading
+# Launch test Minecraft client
 ./gradlew runClient
 
 # Launch headless dedicated test server
@@ -169,14 +163,14 @@ build/libs/omnica-0.1.0-alpha.jar
 
 ---
 
-## 👤 Credits & Author
+## Credits & Authorship
 
-- **Lead Developer & Creator**: **[Bomberrie](https://github.com/Bomberrie)**
-- **Architecture**: Powered by the Fabric Transfer API and Loom toolchain.
-- **Sound & Visual Design**: Built using vanilla Amethyst resonance and modern Minecraft 26.3 rendering.
+- **Author & Maintainer**: **[Bomberrie](https://github.com/Bomberrie)**
+- **Routing Engine**: Implemented via Fabric Transfer API and transaction primitives.
+- **Rendering Pipeline**: Developed with custom double-sided prism shaders and Minecraft 26.3 GuiRenderState.
 
 ---
 
-## 📄 License
+## License
 
-OMNICA is licensed under the open-source **[MIT License](LICENSE)**. Feel free to use it in any modpack, fork, or showcase!
+OMNICA is released under the open-source **[MIT License](LICENSE)**.
