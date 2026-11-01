@@ -156,7 +156,7 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
 
     @Override
     public Component getDisplayName() {
-        return Component.translatable("block.omnica.request_terminal");
+        return Component.translatable("gui.omnica.terminal.title");
     }
 
     @Nullable
