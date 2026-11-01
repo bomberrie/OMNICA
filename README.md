@@ -74,11 +74,6 @@ Crafted at a Crafting Table with Copper Ingots, Amethyst Shard, and Redstone Dus
 
 ![Nexus Node Crafting Recipe](docs/images/recipe_nexus_node.png)
 
-```
-[       ] [ Amethyst Shard ] [       ]
-[Redstone] [  Copper Ingot  ] [Redstone]
-[ Copper ] [  Copper Ingot  ] [ Copper ]
-```
 - **Ingredients**: 1 Amethyst Shard, 2 Redstone Dust, 5 Copper Ingots
 - **Yield**: **4x Nexus Nodes**
 
@@ -89,11 +84,6 @@ Crafted as a tuning implement:
 
 ![Nexus Linker Crafting Recipe](docs/images/recipe_nexus_linker.png)
 
-```
-[       ] [       ] [ Amethyst Shard ]
-[       ] [Redstone] [       ]
-[ Copper ] [       ] [       ]
-```
 - **Ingredients**: 1 Amethyst Shard, 1 Redstone Dust, 1 Copper Ingot
 - **Yield**: **1x Nexus Linker**
 
@@ -104,11 +94,6 @@ Constructed using an Amethyst Block, a Crafter, Redstone Dust, and Copper Ingots
 
 ![Omnica Request Terminal Crafting Recipe](docs/images/recipe_request_terminal.png)
 
-```
-[ Copper ] [ Amethyst Block ] [ Copper ]
-[Redstone] [     Crafter    ] [Redstone]
-[ Copper ] [  Copper Ingot  ] [ Copper ]
-```
 - **Ingredients**: 1 Amethyst Block, 1 Vanilla Crafter, 2 Redstone Dust, 5 Copper Ingots
 - **Yield**: **1x Omnica Request Terminal**
 
