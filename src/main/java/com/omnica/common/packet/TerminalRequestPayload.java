@@ -17,7 +17,7 @@ public record TerminalRequestPayload(
 
     public static final StreamCodec<RegistryFriendlyByteBuf, TerminalRequestPayload> STREAM_CODEC = StreamCodec.composite(
             BlockPos.STREAM_CODEC, TerminalRequestPayload::terminalPos,
-            ItemStack.STREAM_CODEC, TerminalRequestPayload::item,
+            ItemStack.OPTIONAL_STREAM_CODEC, TerminalRequestPayload::item,
             ByteBufCodecs.VAR_INT, TerminalRequestPayload::count,
             TerminalRequestPayload::new
     );
