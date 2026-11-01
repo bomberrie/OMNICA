@@ -37,7 +37,8 @@ public class RequestTerminalBlockEntity extends BlockEntity implements ExtendedM
     }
 
     public boolean addConnection(BlockPos target) {
-        if (target.equals(worldPosition) || !worldPosition.closerThan(target, 32.5)) {
+        double maxDist = com.omnica.common.config.OmnicaConfig.getInstance().maxLinkDistance;
+        if (target.equals(worldPosition) || !worldPosition.closerThan(target, maxDist + 0.5)) {
             return false;
         }
         boolean added = connectedNodes.add(target);

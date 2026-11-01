@@ -31,7 +31,8 @@ public class OmnicaGraph {
     }
 
     public synchronized void link(BlockPos a, BlockPos b) {
-        if (a.equals(b) || !a.closerThan(b, 32.5)) return;
+        double maxDist = com.omnica.common.config.OmnicaConfig.getInstance().maxLinkDistance;
+        if (a.equals(b) || !a.closerThan(b, maxDist + 0.5)) return;
         addNode(a);
         addNode(b);
         adjacencyMap.get(a).add(b);

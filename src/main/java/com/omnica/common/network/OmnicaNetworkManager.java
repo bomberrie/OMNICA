@@ -144,7 +144,9 @@ public class OmnicaNetworkManager {
                                 int travelTicks = (int) Math.max(5, Math.sqrt(sourcePos.distSqr(targetPos)) * 1.5);
                                 TetherTransferPayload payload = new TetherTransferPayload(sourcePos, targetPos, transferredStack, travelTicks);
 
-                                for (ServerPlayer player : PlayerLookup.tracking(level, sourcePos)) {
+                                Set<ServerPlayer> nearbyPlayers = new HashSet<>(PlayerLookup.tracking(level, sourcePos));
+                                nearbyPlayers.addAll(PlayerLookup.tracking(level, targetPos));
+                                for (ServerPlayer player : nearbyPlayers) {
                                     ServerPlayNetworking.send(player, payload);
                                 }
 

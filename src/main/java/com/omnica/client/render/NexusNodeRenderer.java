@@ -70,6 +70,6 @@ public class NexusNodeRenderer implements BlockEntityRenderer<NexusNodeBlockEnti
 
     @Override
     public int getViewDistance() {
-        return 64;
+        return Math.max(128, com.omnica.common.config.OmnicaConfig.getInstance().maxLinkDistance + 32);
     }
 }

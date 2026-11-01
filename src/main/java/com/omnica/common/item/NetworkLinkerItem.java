@@ -3,6 +3,8 @@ package com.omnica.common.item;
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
 import com.omnica.common.blockentity.RequestTerminalBlockEntity;
 import com.omnica.common.network.OmnicaNetworkManager;
+import com.omnica.common.packet.NodeSyncPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -95,6 +97,15 @@ public class NetworkLinkerItem extends Item {
                         net.getGraph().link(selectedPos, clickedPos);
                         net.syncNodeToClients(selectedPos);
                         net.syncNodeToClients(clickedPos);
+
+                        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+                            if (selectedBe instanceof NexusNodeBlockEntity sNode) {
+                                ServerPlayNetworking.send(serverPlayer, new NodeSyncPayload(selectedPos, new java.util.ArrayList<>(sNode.getConnections())));
+                            }
+                            if (clickedBe instanceof NexusNodeBlockEntity cNode) {
+                                ServerPlayNetworking.send(serverPlayer, new NodeSyncPayload(clickedPos, new java.util.ArrayList<>(cNode.getConnections())));
+                            }
+                        }
                     }
 
                     if (player != null) {
