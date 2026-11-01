@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "A": "minecraft:amethyst_block",
+    "R": "minecraft:redstone",
+    "T": "minecraft:crafter",
+    "C": "minecraft:copper_ingot"
+  },
+  "pattern": [
+    "CAC",
+    "RTR",
+    "CCC"
+  ],
+  "result": {
+    "id": "omnica:request_terminal"
+  }
+}

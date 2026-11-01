@@ -37,6 +37,9 @@ public class NexusNodeRenderer implements BlockEntityRenderer<NexusNodeBlockEnti
 
     @Override
     public void submit(NexusNodeRenderState state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraRenderState) {
+        if (!com.omnica.common.config.OmnicaConfig.getInstance().renderLaserBeams) {
+            return;
+        }
         BlockPos nodePos = state.blockPos;
         if (nodePos == null) return;
         Vec3 start = new Vec3(0.5, 0.5, 0.5);

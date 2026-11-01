@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "A": "minecraft:amethyst_shard",
+    "R": "minecraft:redstone",
+    "C": "minecraft:copper_ingot"
+  },
+  "pattern": [
+    "  A",
+    " R ",
+    "C  "
+  ],
+  "result": {
+    "id": "omnica:network_linker"
+  }
+}

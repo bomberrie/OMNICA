@@ -126,6 +126,9 @@ public class Omnica implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[OMNICA] Initializing Vanilla-First Logistics Network for Minecraft 26.3...");
 
+        // Load configuration
+        com.omnica.common.config.OmnicaConfig.load();
+
         // Register Creative Tab Entries
         CreativeModeTabEvents.modifyOutputEvent(ResourceKey.create(Registries.CREATIVE_MODE_TAB, Identifier.parse("redstone_blocks")))
                 .register(entries -> {

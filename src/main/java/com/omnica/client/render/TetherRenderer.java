@@ -43,6 +43,7 @@ public class TetherRenderer {
     }
 
     public static void renderWorld(LevelRenderContext context) {
+        if (!com.omnica.common.config.OmnicaConfig.getInstance().renderFloatingItems) return;
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return;
 

@@ -5,11 +5,11 @@
   "name": "OMNICA",
   "description": "The Vanilla-First Logistics & Supply Chain Network for Fabric.",
   "authors": [
-    "Omnica Contributors"
+    "Bomberrie"
   ],
   "contact": {
-    "homepage": "https://modrinth.com/mod/omnica",
-    "sources": "https://github.com/omnica/omnica"
+    "homepage": "https://github.com/Bomberrie/omnica",
+    "sources": "https://github.com/Bomberrie/omnica"
   },
   "license": "MIT",
   "icon": "assets/omnica/icon.png",
@@ -20,6 +20,9 @@
     ],
     "client": [
       "com.omnica.client.OmnicaClient"
+    ],
+    "modmenu": [
+      "com.omnica.client.compat.OmnicaModMenuCompat"
     ]
   },
   "mixins": [

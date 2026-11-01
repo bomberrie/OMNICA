@@ -7,5 +7,19 @@
   "item.omnica.network_linker": "Nexus Linker",
   "message.omnica.node_linked": "Linked Nexus Node at [%s, %s, %s] to [%s, %s, %s]",
   "message.omnica.link_cleared": "Nexus Linker reset.",
-  "message.omnica.out_of_range": "Target Nexus Node is out of 32-block range!"
+  "message.omnica.out_of_range": "Target Nexus Node is out of range (%s blocks)!",
+  "gui.omnica.config.title": "OMNICA Configuration",
+  "gui.omnica.config.max_distance": "Max Node Link Distance: %s blocks",
+  "gui.omnica.config.max_distance.tooltip": "Maximum range between two connected Nexus Nodes (default 32 blocks).",
+  "gui.omnica.config.transfer_interval": "Transfer Pulse Interval: %s ticks (%s s)",
+  "gui.omnica.config.transfer_interval.tooltip": "How often the network transfers items between containers. Lower = faster, Higher = ultra-efficient (default 8 ticks / 0.4s).",
+  "gui.omnica.config.items_per_transfer": "Batch Size: %s",
+  "gui.omnica.config.items_per_transfer.label": "Transfer Batch Size",
+  "gui.omnica.config.items_per_transfer.tooltip": "Maximum quantity of items moved per transfer pulse (default 64).",
+  "gui.omnica.config.render_beams": "Render Tether Beams",
+  "gui.omnica.config.render_beams.tooltip": "Display radiant amethyst laser lines between linked nodes.",
+  "gui.omnica.config.render_items": "Render Floating Items",
+  "gui.omnica.config.render_items.tooltip": "Show visual items physically floating and traveling through the air along tethers.",
+  "gui.omnica.config.sounds": "Network Sound Effects",
+  "gui.omnica.config.sounds.tooltip": "Play resonant amethyst chimes and audio cues during item transfers."
 }

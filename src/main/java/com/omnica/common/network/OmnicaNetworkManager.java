@@ -1,6 +1,7 @@
 package com.omnica.common.network;
 
 import com.omnica.common.blockentity.NexusNodeBlockEntity;
+import com.omnica.common.config.OmnicaConfig;
 import com.omnica.common.packet.NodeSyncPayload;
 import com.omnica.common.packet.TetherTransferPayload;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
@@ -73,7 +74,8 @@ public class OmnicaNetworkManager {
      */
     public void tick(ServerLevel level) {
         tickCounter++;
-        if (tickCounter % TRANSFER_INTERVAL != 0) {
+        int interval = Math.max(1, OmnicaConfig.getInstance().transferIntervalTicks);
+        if (tickCounter % interval != 0) {
             return;
         }
 
@@ -129,7 +131,7 @@ public class OmnicaNetworkManager {
 
                     // Atomic transaction transfer
                     try (Transaction transaction = Transaction.openOuter()) {
-                        long maxTransfer = Math.min(view.getAmount(), variant.getItem().getDefaultMaxStackSize());
+                        long maxTransfer = Math.min(view.getAmount(), Math.min(variant.getItem().getDefaultMaxStackSize(), OmnicaConfig.getInstance().itemsPerTransfer));
                         long extracted = sourceStorage.extract(variant, maxTransfer, transaction);
 
                         if (extracted > 0) {
@@ -146,7 +148,9 @@ public class OmnicaNetworkManager {
                                     ServerPlayNetworking.send(player, payload);
                                 }
 
-                                level.playSound(null, sourcePos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.4f, 2.0f);
+                                if (OmnicaConfig.getInstance().enableSoundEffects) {
+                                    level.playSound(null, sourcePos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.4f, 2.0f);
+                                }
                                 break; // Only one transfer per node per cycle
                             }
                         }

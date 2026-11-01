@@ -78,9 +78,10 @@ public class NetworkLinkerItem extends Item {
                     return InteractionResult.SUCCESS;
                 }
 
-                if (!selectedPos.closerThan(clickedPos, 32.5)) {
+                double maxDist = com.omnica.common.config.OmnicaConfig.getInstance().maxLinkDistance;
+                if (!selectedPos.closerThan(clickedPos, maxDist + 0.5)) {
                     if (player != null) {
-                        player.sendOverlayMessage(Component.translatable("message.omnica.out_of_range").withStyle(ChatFormatting.RED));
+                        player.sendOverlayMessage(Component.translatable("message.omnica.out_of_range", (int) maxDist).withStyle(ChatFormatting.RED));
                     }
                     return InteractionResult.FAIL;
                 }
