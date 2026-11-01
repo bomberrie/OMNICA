@@ -72,6 +72,8 @@ All components are crafted using standard vanilla recipes.
 ### Nexus Node (Yields 4x)
 Crafted at a Crafting Table with Copper Ingots, Amethyst Shard, and Redstone Dust:
 
+![Nexus Node Crafting Recipe](docs/images/recipe_nexus_node.png)
+
 ```
 [       ] [ Amethyst Shard ] [       ]
 [Redstone] [  Copper Ingot  ] [Redstone]
@@ -85,6 +87,8 @@ Crafted at a Crafting Table with Copper Ingots, Amethyst Shard, and Redstone Dus
 ### Nexus Linker (Yields 1x)
 Crafted as a tuning implement:
 
+![Nexus Linker Crafting Recipe](docs/images/recipe_nexus_linker.png)
+
 ```
 [       ] [       ] [ Amethyst Shard ]
 [       ] [Redstone] [       ]
@@ -97,6 +101,8 @@ Crafted as a tuning implement:
 
 ### Omnica Request Terminal (Yields 1x)
 Constructed using an Amethyst Block, a Crafter, Redstone Dust, and Copper Ingots:
+
+![Omnica Request Terminal Crafting Recipe](docs/images/recipe_request_terminal.png)
 
 ```
 [ Copper ] [ Amethyst Block ] [ Copper ]
