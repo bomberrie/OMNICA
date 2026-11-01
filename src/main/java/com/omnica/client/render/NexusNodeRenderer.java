@@ -46,11 +46,6 @@ public class NexusNodeRenderer implements BlockEntityRenderer<NexusNodeBlockEnti
 
         collector.submitCustomGeometry(poseStack, RenderTypes.lightning(), (pose, consumer) -> {
             for (BlockPos targetPos : state.connections) {
-                // Avoid duplicate rendering (only render if nodePos < targetPos)
-                if (nodePos.compareTo(targetPos) > 0) {
-                    continue;
-                }
-
                 Vec3 targetRel = new Vec3(
                         targetPos.getX() - nodePos.getX() + 0.5,
                         targetPos.getY() - nodePos.getY() + 0.5,
@@ -58,7 +53,7 @@ public class NexusNodeRenderer implements BlockEntityRenderer<NexusNodeBlockEnti
                 );
 
                 // Render laser beam in vibrant amethyst cyan/purple
-                TetherRenderer.renderBeam(pose, consumer, start, targetRel, 0.78f, 0.45f, 0.95f, 0.75f);
+                TetherRenderer.renderBeam(pose, consumer, start, targetRel, 0.78f, 0.45f, 0.95f, 0.85f);
             }
         });
     }

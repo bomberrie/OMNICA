@@ -103,7 +103,7 @@ public class TetherRenderer {
     public static void renderBeam(PoseStack.Pose pose, VertexConsumer consumer, Vec3 start, Vec3 end, float r, float g, float b, float a) {
         Vec3 dir = end.subtract(start);
         float length = (float) dir.length();
-        if (length < 0.01f) return;
+        if (length < 0.05f) return;
 
         Matrix4f mat = new Matrix4f(pose.pose());
         mat.translate((float) start.x, (float) start.y, (float) start.z);
@@ -116,17 +116,37 @@ public class TetherRenderer {
         mat.rotate(Axis.YP.rotation(yaw));
         mat.rotate(Axis.XP.rotation(pitch));
 
-        float radius = 0.04f;
+        // Outer radiant amethyst beam
+        float outerR = 0.08f;
+        drawBoxBeam(consumer, mat, outerR, length, r, g, b, a * 0.7f);
 
-        // Draw quad cross-section
-        drawBeamQuad(consumer, mat, -radius, 0, radius, length, r, g, b, a);
-        drawBeamQuad(consumer, mat, 0, -radius, length, radius, r, g, b, a);
+        // Inner luminous core beam
+        float innerR = 0.035f;
+        drawBoxBeam(consumer, mat, innerR, length, 1.0f, 0.9f, 1.0f, 1.0f);
     }
 
-    private static void drawBeamQuad(VertexConsumer consumer, Matrix4f mat, float x0, float y0, float x1, float length, float r, float g, float b, float a) {
+    private static void drawBoxBeam(VertexConsumer consumer, Matrix4f mat, float radius, float length, float r, float g, float b, float a) {
+        // Face 1: Bottom (-Y)
+        drawDoubleSidedQuad(consumer, mat, -radius, -radius, radius, -radius, length, r, g, b, a);
+        // Face 2: Top (+Y)
+        drawDoubleSidedQuad(consumer, mat, -radius, radius, radius, radius, length, r, g, b, a);
+        // Face 3: Left (-X)
+        drawDoubleSidedQuad(consumer, mat, -radius, -radius, -radius, radius, length, r, g, b, a);
+        // Face 4: Right (+X)
+        drawDoubleSidedQuad(consumer, mat, radius, -radius, radius, radius, length, r, g, b, a);
+    }
+
+    private static void drawDoubleSidedQuad(VertexConsumer consumer, Matrix4f mat, float x0, float y0, float x1, float y1, float length, float r, float g, float b, float a) {
+        // Front face
         consumer.addVertex(mat, x0, y0, 0).setColor(r, g, b, a).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
-        consumer.addVertex(mat, x1, y0, 0).setColor(r, g, b, a).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
-        consumer.addVertex(mat, x1, y0, length).setColor(r, g, b, a).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+        consumer.addVertex(mat, x1, y1, 0).setColor(r, g, b, a).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+        consumer.addVertex(mat, x1, y1, length).setColor(r, g, b, a).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
         consumer.addVertex(mat, x0, y0, length).setColor(r, g, b, a).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, 1, 0);
+
+        // Back face (reverse winding order)
+        consumer.addVertex(mat, x0, y0, length).setColor(r, g, b, a).setUv(0, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, -1, 0);
+        consumer.addVertex(mat, x1, y1, length).setColor(r, g, b, a).setUv(1, 1).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, -1, 0);
+        consumer.addVertex(mat, x1, y1, 0).setColor(r, g, b, a).setUv(1, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, -1, 0);
+        consumer.addVertex(mat, x0, y0, 0).setColor(r, g, b, a).setUv(0, 0).setOverlay(OverlayTexture.NO_OVERLAY).setLight(0xF000F0).setNormal(0, -1, 0);
     }
 }

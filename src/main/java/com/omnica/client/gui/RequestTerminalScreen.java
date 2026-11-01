@@ -7,6 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -40,8 +41,8 @@ public class RequestTerminalScreen extends AbstractContainerScreen<RequestTermin
     protected void init() {
         super.init();
 
-        // Vanilla-styled search box positioned in the top-right header area
-        this.searchField = new EditBox(this.font, this.leftPos + 82, this.topPos + 4, 86, 12, Component.literal("Search"));
+        // Position search box in the top-right header area with ample clearance from the title
+        this.searchField = new EditBox(this.font, this.leftPos + 80, this.topPos + 4, 88, 12, Component.literal("Search"));
         this.searchField.setMaxLength(32);
         this.searchField.setBordered(true);
         this.searchField.setCanLoseFocus(true);
@@ -74,6 +75,13 @@ public class RequestTerminalScreen extends AbstractContainerScreen<RequestTermin
         extractor.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND, x, y, 0.0f, 0.0f, this.imageWidth, 125, 256, 256);
         // Bottom player inventory + hotbar
         extractor.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND, x, y + 125, 0.0f, 126.0f, this.imageWidth, 96, 256, 256);
+    }
+
+    @Override
+    protected void extractLabels(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        // Draw clean title "Terminal" ensuring it never overlaps the search box
+        extractor.text(this.font, Component.literal("Terminal"), 8, 6, 0x404040, false);
+        extractor.text(this.font, this.playerInventoryTitle, 8, this.inventoryLabelY, 0x404040, false);
     }
 
     @Override
@@ -124,12 +132,17 @@ public class RequestTerminalScreen extends AbstractContainerScreen<RequestTermin
         double mouseX = event.x();
         double mouseY = event.y();
 
-        // Right-clicking the search box instantly clears it
-        if (event.button() == 1 && this.searchField != null) {
+        // Direct search box interaction
+        if (this.searchField != null) {
             if (mouseX >= this.searchField.getX() && mouseX < this.searchField.getX() + this.searchField.getWidth()
                     && mouseY >= this.searchField.getY() && mouseY < this.searchField.getY() + this.searchField.getHeight()) {
-                this.searchField.setValue("");
-                return true;
+                if (event.button() == 1) { // Right click clears search
+                    this.searchField.setValue("");
+                }
+                this.searchField.setFocused(true);
+                return this.searchField.mouseClicked(event, isDouble);
+            } else if (mouseX < this.leftPos || mouseX > this.leftPos + this.imageWidth || mouseY < this.topPos || mouseY > this.topPos + this.imageHeight) {
+                this.searchField.setFocused(false);
             }
         }
 
@@ -188,7 +201,17 @@ public class RequestTerminalScreen extends AbstractContainerScreen<RequestTermin
             if (this.searchField.keyPressed(event)) {
                 return true;
             }
+            // Consume key while typing so inventory key (e.g. 'E') does not close the screen
+            return true;
         }
         return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        if (this.searchField != null && this.searchField.isFocused()) {
+            return this.searchField.charTyped(event);
+        }
+        return super.charTyped(event);
     }
 }
