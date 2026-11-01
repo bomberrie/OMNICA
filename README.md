@@ -1,3 +1,5 @@
+![OMNICA](docs/images/banner.jpg)
+
 # OMNICA
 
 [![Minecraft](https://img.shields.io/badge/Minecraft-26.3%20%28Wilderness%20Bound%29-blue?logo=minecraft)](https://minecraft.net/)
