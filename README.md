@@ -10,6 +10,8 @@
 
 **OMNICA** replaces messy hopper lines, noisy dropper towers, and lag-heavy water streams with a clean, magical wireless item network. Connect your chests, barrels, and auto-crafters across your base using resonant amethyst crystals and copper conductors — with **zero custom ores**, **zero energy fuels**, and **zero lag**.
 
+![OMNICA Network Overview](docs/images/network_overview.png)
+
 ---
 
 ## ✨ Why OMNICA?
@@ -52,6 +54,8 @@ The **Nexus Linker** is your network tuning tool.
 - **Reset Selection**: Right-click the same node again or right-click into the air while sneaking to clear your current selection.
 - **Multi-Node Networks**: A single node can connect to multiple neighbors, forming a unified web of chests across your base.
 
+![Linking Nexus Nodes with the Nexus Linker](docs/images/node_linking.png)
+
 ---
 
 ### 3. Request Terminal
@@ -60,6 +64,8 @@ The ultimate command center for your storage room.
 - Right-click the terminal to open the search interface.
 - **Instant Search**: Type the name of any item in the search bar.
 - **One-Click Delivery**: Left-click any item in the terminal to pull a stack directly from your remote chests into your inventory!
+
+![Omnica Request Terminal Interface](docs/images/terminal_gui.png)
 
 ---
 
@@ -109,6 +115,8 @@ The central logistics interface, powered by the vanilla Crafter:
 ## ⚙️ Mod Menu & Configuration
 
 If you have **Mod Menu** installed, you can configure OMNICA directly from the in-game settings screen! Click **Mods** → **OMNICA** → **Configure**.
+
+![In-Game Mod Menu Configuration](docs/images/config_screen.png)
 
 All settings are also saved to `config/omnica.json`:
 
